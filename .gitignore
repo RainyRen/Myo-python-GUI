@@ -1,0 +1,11 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# data / result / model file
+*data/
+*result/
+
+# special file
+myo_python/config/ini_config.yml
