@@ -110,7 +110,8 @@ class Listener(myo.DeviceListener):
     def get_emg_data(self):
         # pdb.set_trace()
         with self.lock:
-            raw_emg = np.asarray(self.emg)
+            raw_emg = np.asarray([np.asarray(one_emg) for one_emg in self.emg])
+            # print(raw_emg)
             raw_emg = raw_emg.swapaxes(1, 2)
 
             # raw_emg = np.fabs(raw_emg)    # used for using low pass filer method
