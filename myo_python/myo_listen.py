@@ -73,6 +73,7 @@ class MyoListen(QThread):
         self.get_arm_angle_signal = False
         self.arm_angle = None
 
+        self.send_signal = False
         self.record_signal = False
         self.record_file_name = None
         self.mutex = QMutex()
@@ -120,6 +121,10 @@ class MyoListen(QThread):
             self.socket.close()
             self.hub.stop(True)
             self.hub.shutdown()
+
+    def send(self, is_send):
+        with QMutexLocker(self.mutex):
+            self.send_signal = is_send
 
     def record(self, file_name, is_record):
         with QMutexLocker(self.mutex):
