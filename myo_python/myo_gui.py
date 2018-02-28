@@ -2,6 +2,7 @@ import pdb
 import os
 import sys
 import yaml
+import csv
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
@@ -47,6 +48,7 @@ class TableWidget(QWidget):
     def __init__(self, parent=None):
         super(self.__class__, self).__init__(parent)
         self.myo_dongle = None
+        self.config_dict = dict()
 
         # # ***** below are gui init *****
         # # ===== define whole layout =====
@@ -70,12 +72,11 @@ class TableWidget(QWidget):
         # # ===== Create first tab =====
         self.tcp_connect_bnt = QPushButton("connect")
         self.tcp_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
+        self.tcp_connect_bnt.setCheckable(True)
         self.tcp_send_bnt = QPushButton("send")
         self.tcp_send_bnt.setIcon(QIcon(str(IMAGE_PATH / "send.png")))
+        self.tcp_send_bnt.setCheckable(True)
         self.tcp_send_bnt.setDisabled(True)
-        self.tcp_abort_bnt = QPushButton("abort")
-        self.tcp_abort_bnt.setIcon(QIcon(str(IMAGE_PATH / "abort.png")))
-        self.tcp_abort_bnt.setDisabled(True)
         self.data_record_bnt = QPushButton("record")
         self.data_record_bnt.setIcon(QIcon(str(IMAGE_PATH / "record.png")))
         self.data_record_bnt.setCheckable(True)
@@ -124,7 +125,6 @@ class TableWidget(QWidget):
         tcp_bnt_layout = QHBoxLayout()
         tcp_bnt_layout.addWidget(self.tcp_connect_bnt)
         tcp_bnt_layout.addWidget(self.tcp_send_bnt)
-        tcp_bnt_layout.addWidget(self.tcp_abort_bnt)
 
         arm_angle_layout = QHBoxLayout()
         arm_angle_layout.addWidget(self.arm_cali_bnt)
@@ -239,7 +239,6 @@ class TableWidget(QWidget):
 
         self.tcp_connect_bnt.clicked.connect(self.tcp_connect)
         self.tcp_send_bnt.clicked.connect(self.tcp_send)
-        self.tcp_abort_bnt.clicked.connect(self.tcp_abort)
 
         self.arm_cali_bnt.clicked.connect(self.arm_calibration)
         self.arm_angle_bnt.clicked.connect(self.arm_angle)
@@ -256,66 +255,86 @@ class TableWidget(QWidget):
         self.myo_msg.append(receive_msg)
 
     def tcp_connect(self):
-        self.myo_msg.clear()
-        print("=================")
-        print("tcp connect")
-        # use_hpf = self.hpf_checkbox.isChecked()
-        # print(use_hpf)
-        # print(self.hpf_cutoff_fs.value())
-        # print(self.ma_length.value())
+        if self.tcp_connect_bnt.isChecked():
+            self.myo_msg.clear()
+            print("=================")
+            print("tcp connect")
+            # use_hpf = self.hpf_checkbox.isChecked()
+            # print(use_hpf)
+            # print(self.hpf_cutoff_fs.value())
+            # print(self.ma_length.value())
 
-        # # ===== save config file =====
-        config_dict = dict()
-        config_dict['req_mode'] = self.req_radio_bnt.isChecked()
-        config_dict['do_filter'] = self.hpf_checkbox.isChecked()
-        config_dict['moving_ave'] = self.ma_checkbox.isChecked()
-        config_dict['filter_order'] = self.hpf_filter_oder.value()
-        config_dict['low_cutoff'] = self.hpf_cutoff_fs.value()
-        config_dict['window_size'] = self.ma_length.value()
-        config_dict['tcp_address'] = self.tcp_address.text()
-        config_dict['send_fs'] = self.send_fs.value()
+            # # ===== save config file =====
+            self.config_dict['req_mode'] = self.req_radio_bnt.isChecked()
+            self.config_dict['do_filter'] = self.hpf_checkbox.isChecked()
+            self.config_dict['moving_ave'] = self.ma_checkbox.isChecked()
+            self.config_dict['filter_order'] = self.hpf_filter_oder.value()
+            self.config_dict['low_cutoff'] = self.hpf_cutoff_fs.value()
+            self.config_dict['window_size'] = self.ma_length.value()
+            self.config_dict['tcp_address'] = self.tcp_address.text()
+            self.config_dict['send_fs'] = self.send_fs.value()
+            self.config_dict['send_save'] = []
 
-        with open(ROOT_PATH / "config" / "ini_config.yml", "w") as config_file:
-            yaml.dump(config_dict, config_file, default_flow_style=False)
+            if self.send_emg_checkbox.isChecked():
+                self.config_dict['send_save'].append('emg')
 
-        # # ===== button state set =====
-        self.tcp_connect_bnt.setDisabled(True)
-        self.tcp_send_bnt.setDisabled(False)
+            if self.send_imu_checkbox.isChecked():
+                self.config_dict['send_save'].extend(['orientation', 'acceleration', 'gyroscope'])
 
-        # # ===== run myo feed =====
-        if self.myo_listen_radio_bnt.isChecked():
-            self.myo_dongle = MyoListen()
+            if self.send_arm_angle_checkbox.isChecked():
+                self.config_dict['send_save'].append('arm_angle')
 
-        elif self.myo_feed_radio_bnt.isChecked():
-            self.myo_dongle = MyoFeed()
+            if self.send_status_checkbox.isChecked():
+                self.config_dict['send_save'].append('myo_status')
 
-        self.myo_dongle.msg_signal.connect(self.update_msg)
-        if self.myo_dongle.connect_state:
-            self.update_msg("connect successful")
+            with open(ROOT_PATH / "config" / "ini_config.yml", "w") as config_file:
+                yaml.dump(self.config_dict, config_file, default_flow_style=False)
+
+            # # ===== button state set =====
+            self.tcp_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "abort.png")))
+            self.tcp_send_bnt.setDisabled(False)
+            self.arm_cali_bnt.setDisabled(False)
+            self.arm_angle_bnt.setDisabled(False)
+            self.data_record_bnt.setDisabled(False)
+
+            # # ===== run myo feed =====
+            if self.myo_listen_radio_bnt.isChecked():
+                self.myo_dongle = MyoListen()
+
+            elif self.myo_feed_radio_bnt.isChecked():
+                self.myo_dongle = MyoFeed()
+
+            self.myo_dongle.msg_signal.connect(self.update_msg)
+            if self.myo_dongle.connect_state:
+                self.update_msg("connect successful")
+                self.myo_dongle.start()
+
+            else:
+                self.update_msg("connect fail")
+
+        else:
+            print("tcp abort")
+            self.myo_dongle.stop()
+            self.myo_dongle.quit()
+            self.update_msg("myo disconnected")
+
+            # # ===== button state set =====
+            self.tcp_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
+            self.tcp_send_bnt.setChecked(False)
+            self.tcp_send_bnt.setDisabled(True)
+            self.arm_cali_bnt.setDisabled(True)
+            self.arm_angle_bnt.setChecked(False)
+            self.arm_angle_bnt.setDisabled(True)
+            self.data_record_bnt.setChecked(False)
+            self.data_record_bnt.setDisabled(True)
 
     def tcp_send(self):
-        # pdb.set_trace()
-        print("tcp send")
-        self.myo_dongle.start()
+        if self.tcp_send_bnt.isChecked():
+            print("tcp send")
+            self.myo_dongle.send(True)
 
-        # # ===== button state set =====
-        self.tcp_send_bnt.setDisabled(True)
-        self.tcp_abort_bnt.setDisabled(False)
-        self.arm_cali_bnt.setDisabled(False)
-        self.arm_angle_bnt.setDisabled(False)
-        self.data_record_bnt.setDisabled(False)
-
-    def tcp_abort(self):
-        print("tcp abort")
-        self.myo_dongle.stop()
-        self.myo_dongle.quit()
-        self.update_msg("myo disconnected")
-
-        # # ===== button state set =====
-        self.tcp_connect_bnt.setDisabled(False)
-        self.tcp_abort_bnt.setDisabled(True)
-        self.arm_angle_bnt.setDisabled(True)
-        self.data_record_bnt.setDisabled(True)
+        else:
+            self.myo_dongle.send(False)
 
     def arm_calibration(self):
         self.myo_dongle.arm_calibration()
@@ -334,6 +353,14 @@ class TableWidget(QWidget):
     def data_record(self):
         if self.data_record_bnt.isChecked():
             save_file_name = self._get_save_file_name()
+            if not Path(save_file_name).exists():
+                print("make new file {}".format(save_file_name))
+                self.update_msg("make new file {}".format(save_file_name))
+
+                with open(save_file_name, 'w', newline='') as save_file:
+                    writer = csv.writer(save_file)
+                    writer.writerow(self.config_dict['send_save'])
+
             self.update_msg("start recording data...")
             self.myo_dongle.record(save_file_name, True)
 

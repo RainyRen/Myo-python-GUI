@@ -34,7 +34,8 @@ class MyoListen(QThread):
         self.send_fs = config['send_fs']      # type: int
         self.fs = 200       # device EMG sampling frequency
         self.connect_state = False
-        self.send_contents = ['emg', 'orientation', 'acceleration', 'gyroscope', 'myo_status']
+        self.send_save = config['send_save']
+        print(self.send_save)
         # # ===== initial zmq protocol =====
         context = zmq.Context()
         if self.is_req_mode:
@@ -161,8 +162,10 @@ class MyoListen(QThread):
     def _pub_mode(self):
         while self.hub.running:
             self._get_devices_data()
-            send_data = json.dumps(self.device_data)
-            self.socket.send_string(send_data)
+
+            if self.send_signal:
+                send_data = json.dumps(self.device_data)
+                self.socket.send_string(send_data)
 
             if self.stop_signal:
                 print("stop myo")
@@ -184,14 +187,17 @@ class MyoListen(QThread):
             print('\r', end='')
             print(self.device_data['arm_angle'], end='')
 
+        else:
+            self.device_data['arm_angle'] = [[], []]
+
         if self.record_signal:
             save_data = [
                 element
-                for item in self.send_contents
+                for item in self.send_save
                 for device_id in range(self.devices_num)
                 for element in self.device_data[item][device_id]
             ]
-            with open(self.record_file_name, 'a') as record_file:
+            with open(self.record_file_name, 'a', newline='') as record_file:
                 writer = csv.writer(record_file)
                 writer.writerow(save_data)
 
