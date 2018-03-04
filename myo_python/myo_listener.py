@@ -36,9 +36,6 @@ class Listener(myo.DeviceListener):
         self.rssi = list()
         self.battery_level = list()
 
-        self.acc_angle = [[0, 0], [0, 0]]
-        self.euler = [[0, 0, 0], [0, 0, 0]]
-
     def on_connect(self, device, timestamp, firmware_version):
         # print(device)
         device.set_stream_emg(myo.StreamEmg.enabled)
@@ -175,6 +172,14 @@ class ArmAngle(object):
         self.dt = dt
         self.is_init = False
 
+        self.angle_2 = 0
+        self.angle_5 = 0
+        self.angle_6 = 0
+        self.angle_7 = 0
+        self.angle_2_bias = 0
+        self.angle_5_bias = 0
+        self.angle_6_bias = 0
+        self.angle_7_bias = 0
         self.calibration(rotation)
 
     def calibration(self, rotation):
@@ -183,6 +188,10 @@ class ArmAngle(object):
         :param list rotation: tow list contain 8 element of two arm Quaternion
         :return: None
         """
+        # self.angle_2_bias = self.angle_2
+        # self.angle_5_bias = self.angle_5
+        # self.angle_6_bias = self.angle_6
+        # self.angle_7_bias = self.angle_7
         self.yaw_init = [self._cal_yaw(one_rotate) for one_rotate in rotation]
         self.is_init = True
 
@@ -191,15 +200,16 @@ class ArmAngle(object):
         yaw = [self._cal_yaw(one_rotate) for one_rotate in rotation]
         self._set_euler(yaw, gyroscope)
 
-        angle_2 = -self.euler[-1][2]
-        angle_5 = self.euler[-1][1]
-        angle_6 = -self.euler[-1][0]
-        angle_7 = 200 - abs(self.euler[1][1] - self.euler[0][1]) - abs(self.euler[1][2] - self.euler[0][2])
+        self.angle_2 = -self.euler[-1][2] - self.angle_2_bias
+        self.angle_5 = self.euler[-1][1] - self.angle_5_bias
+        self.angle_6 = -self.euler[-1][0] - self.angle_6_bias
+        self.angle_7 = abs(self.euler[1][1] - self.euler[0][1]) + abs(self.euler[1][2] - self.euler[0][2])
 
-        if angle_7 > 180:
-            angle_7 = 178 + ((angle_7 - 180) / 90)
+        # if self.angle_7 > 180:
+        #     print("angle 7 large than 180")
+        #     self.angle_7 = 178 + ((self.angle_7 - 180) / 90)
 
-        return angle_2, angle_5, angle_6, angle_7
+        return self.angle_2, self.angle_5, self.angle_6, self.angle_7
 
     def _set_euler(self, yaw, gyroscope):
         for myo_idx in range(2):

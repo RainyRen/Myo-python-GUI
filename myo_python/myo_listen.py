@@ -184,8 +184,8 @@ class MyoListen(QThread):
         if self.get_arm_angle_signal:
             self.device_data['arm_angle'] = self.arm_angle.get_arm_angle(
                 self.device_data['orientation'], self.device_data['acceleration'], self.device_data['gyroscope'])
-            print('\r', end='')
-            print(self.device_data['arm_angle'], end='')
+            print('\r                 ', end='')
+            print('\r{:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['arm_angle']), end='')
 
         else:
             self.device_data['arm_angle'] = [[], []]
