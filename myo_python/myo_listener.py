@@ -70,10 +70,24 @@ class Listener(myo.DeviceListener):
             self.emg[device_num].append(emg_data)
 
     def on_orientation_data(self, device, timestamp, orientation):
+        """
+        get myo orientation respect to world frame
+        :param device:
+        :param timestamp:
+        :param orientation: type of myo Quaternion object
+        :return:
+        """
         device_num = self.identify_myo(device)
-        self.orientation[device_num] = list(orientation)
+        self.orientation[device_num] = orientation
 
     def on_accelerometor_data(self, device, timestamp, acceleration):
+        """
+        get accelerometer data on myo
+        :param device:
+        :param timestamp:
+        :param acceleration: type of myo vector object
+        :return:
+        """
         device_num = self.identify_myo(device)
         self.acceleration[device_num] = list(acceleration)
 
@@ -145,7 +159,12 @@ class Listener(myo.DeviceListener):
     @property
     def get_orientation(self):
         with self.lock:
-            return self.orientation
+            return [list(quaternion) for quaternion in self.orientation]
+
+    @property
+    def get_rpy(self):
+        with self.lock:
+            return [list(map(math.degrees, quaternion.rpy)) for quaternion in self.orientation]
 
     @property
     def get_acceleration(self):
@@ -176,10 +195,6 @@ class ArmAngle(object):
         self.angle_5 = 0
         self.angle_6 = 0
         self.angle_7 = 0
-        self.angle_2_bias = 0
-        self.angle_5_bias = 0
-        self.angle_6_bias = 0
-        self.angle_7_bias = 0
         self.calibration(rotation)
 
     def calibration(self, rotation):
@@ -200,9 +215,9 @@ class ArmAngle(object):
         yaw = [self._cal_yaw(one_rotate) for one_rotate in rotation]
         self._set_euler(yaw, gyroscope)
 
-        self.angle_2 = -self.euler[-1][2] - self.angle_2_bias
-        self.angle_5 = self.euler[-1][1] - self.angle_5_bias
-        self.angle_6 = -self.euler[-1][0] - self.angle_6_bias
+        self.angle_2 = -self.euler[1][2]
+        self.angle_5 = self.euler[1][1]
+        self.angle_6 = -self.euler[1][0]
         self.angle_7 = abs(self.euler[1][1] - self.euler[0][1]) + abs(self.euler[1][2] - self.euler[0][2])
 
         # if self.angle_7 > 180:
@@ -253,3 +268,31 @@ class ArmAngle(object):
         )
 
         return yaw_degree
+
+
+class ArmAngle2(object):
+    def __init__(self):
+        self.upper_arm_bias = [0, 0, 0]
+        self.forearm_bias = [0, 0, 0]
+
+        self.angle_2 = 0
+        self.angle_5 = 0
+        self.angle_6 = 0
+        self.angle_7 = 0
+
+    def calibration(self, rpys):
+        self.forearm_bias, self.upper_arm_bias = rpys
+
+    def cal_arm_angle(self, rpys):
+        """
+        :param rpys: include two arms rpy, in order pitch, roll, yaw
+        :return:
+        """
+        forearm, upper_arm = rpys
+
+        self.angle_2 = upper_arm[2] - self.upper_arm_bias[2]
+        self.angle_5 = upper_arm[1] - self.upper_arm_bias[1]
+        self.angle_6 = upper_arm[0] - self.upper_arm_bias[0]
+        self.angle_7 = (forearm[1] - self.forearm_bias[1]) - (upper_arm[1] - self.upper_arm_bias[1])
+
+        return self.angle_2, self.angle_5, self.angle_6, self.angle_7

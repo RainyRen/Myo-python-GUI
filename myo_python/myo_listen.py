@@ -12,7 +12,7 @@ import zmq
 from PyQt5.QtCore import QThread, QMutex, QMutexLocker, pyqtSignal
 
 import myo
-from myo_listener import Listener, ArmAngle
+from myo_listener import Listener, ArmAngle2
 
 
 class MyoListen(QThread):
@@ -176,14 +176,15 @@ class MyoListen(QThread):
 
     def _get_devices_data(self):
         self.device_data['emg'] = self.listener.get_emg_data
-        self.device_data['orientation'] = self.listener.get_orientation
+        self.device_data['rpy'] = self.listener.get_rpy
         self.device_data['acceleration'] = self.listener.get_acceleration
         self.device_data['gyroscope'] = self.listener.get_gyroscope
-        self.device_data['myo_status'] = self.listener.get_device_state
+        # self.device_data['myo_status'] = self.listener.get_device_state
+        # print('\r                 ', end='')
+        # print('\r{:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['rpy'][0]), end='')
 
         if self.get_arm_angle_signal:
-            self.device_data['arm_angle'] = self.arm_angle.get_arm_angle(
-                self.device_data['orientation'], self.device_data['acceleration'], self.device_data['gyroscope'])
+            self.device_data['arm_angle'] = self.arm_angle.cal_arm_angle(self.device_data['rpy'])
             print('\r                 ', end='')
             print('\r{:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['arm_angle']), end='')
 
@@ -208,13 +209,14 @@ class MyoListen(QThread):
 
             elif is_get:
                 self.get_arm_angle_signal = True
-                self.arm_angle = ArmAngle(self.device_data['orientation'], dt=0.02)
+                # self.arm_angle = ArmAngle(self.device_data['orientation'], dt=0.02)
+                self.arm_angle = ArmAngle2()
 
             else:
                 self.get_arm_angle_signal = False
 
     def arm_calibration(self):
-        self.arm_angle.calibration(self.device_data['orientation'])
+        self.arm_angle.calibration(self.device_data['rpy'])
 
 
 if __name__ == '__main__':

@@ -136,38 +136,53 @@ class Quaternion(object):
         """ Calculates the Roll of the Quaternion. """
 
         x, y, z, w = self.x, self.y, self.z, self.w
-        return math.atan2(2*y*w - 2*x*z, 1 - 2*y*y - 2*z*z)
+        return math.atan2(2 * y * w - 2 * x * z, 1 - 2 * y * y - 2 * z * z)
 
     @property
     def pitch(self):
         """ Calculates the Pitch of the Quaternion. """
 
         x, y, z, w = self.x, self.y, self.z, self.w
-        return math.atan2(2*x*w - 2*y*z, 1 - 2*x*x - 2*z*z)
+        return math.atan2(2 * x * w - 2 * y * z, 1 - 2 * x * x - 2 * z * z)
 
     @property
     def yaw(self):
         """ Calculates the Yaw of the Quaternion. """
 
         x, y, z, w = self.x, self.y, self.z, self.w
-        return math.asin(2*x*y + 2*z*w)
+        return math.asin(2 * x * y + 2 * z * w)
 
     @property
     def rpy(self):
         """ Calculates the Roll, Pitch and Yaw of the Quaternion. """
 
         x, y, z, w = self.x, self.y, self.z, self.w
-        roll = math.atan2(2*y*w - 2*x*z, 1 - 2*y*y - 2*z*z)
-        pitch = math.atan2(2*x*w - 2*y*z, 1 - 2*x*x - 2*z*z)
-        yaw = math.asin(2*x*y + 2*z*w)
-        return (roll, pitch, yaw)
+        # roll = math.atan2(2 * y * w - 2 * x * z, 1 - 2 * y * y - 2 * z * z)
+        # pitch = math.atan2(2 * x * w - 2 * y * z, 1 - 2 * x * x - 2 * z * z)
+        # yaw = math.asin(2 * x * y + 2 * z * w)
+
+        ysqr = y * y
+
+        t0 = +2.0 * (w * x + y * z)
+        t1 = +1.0 - 2.0 * (x * x + ysqr)
+        roll = math.atan2(t0, t1)
+
+        t2 = +2.0 * (w * y - z * x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch = math.asin(t2)
+
+        t3 = +2.0 * (w * z + x * y)
+        t4 = +1.0 - 2.0 * (ysqr + z * z)
+        yaw = math.atan2(t3, t4)
+
+        return roll, pitch, yaw
 
     @staticmethod
     def identity():
         """
         Returns the identity :class:`Quaternion`.
         """
-
         return Quaternion(0, 0, 0, 1)
 
     @staticmethod
@@ -201,7 +216,7 @@ class Quaternion(object):
         if cos_theta / k <= -1:
             x_axis = Vector(1, 0, 0)
             y_axis = Vector(0, 1, 1)
-            if abs(source.dot(x_ais)) < 1.0:
+            if abs(source.dot(x_axis)) < 1.0:
                 cross = source.cross(x_axis)
             else:
                 cross = source.cross(y_axis)
