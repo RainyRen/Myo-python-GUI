@@ -210,7 +210,7 @@ class ArmAngle(object):
         self.yaw_init = [self._cal_yaw(one_rotate) for one_rotate in rotation]
         self.is_init = True
 
-    def get_arm_angle(self, rotation, acceleration, gyroscope):
+    def cal_arm_angle(self, rotation, acceleration, gyroscope):
         self._set_acc_angle(acceleration)
         yaw = [self._cal_yaw(one_rotate) for one_rotate in rotation]
         self._set_euler(yaw, gyroscope)

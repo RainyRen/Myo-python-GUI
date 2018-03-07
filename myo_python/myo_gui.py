@@ -279,7 +279,7 @@ class TableWidget(QWidget):
                 self.config_dict['send_save'].append('emg')
 
             if self.send_imu_checkbox.isChecked():
-                self.config_dict['send_save'].extend(['orientation', 'acceleration', 'gyroscope'])
+                self.config_dict['send_save'].extend(['rpy', 'gyroscope', 'acceleration'])
 
             if self.send_arm_angle_checkbox.isChecked():
                 self.config_dict['send_save'].append('arm_angle')
@@ -287,7 +287,7 @@ class TableWidget(QWidget):
             if self.send_status_checkbox.isChecked():
                 self.config_dict['send_save'].append('myo_status')
 
-            with open(ROOT_PATH / "config" / "ini_config.yml", "w") as config_file:
+            with open(str(ROOT_PATH / "config" / "ini_config.yml"), "w") as config_file:
                 yaml.dump(self.config_dict, config_file, default_flow_style=False)
 
             # # ===== button state set =====
@@ -311,6 +311,8 @@ class TableWidget(QWidget):
 
             else:
                 self.update_msg("connect fail")
+                self.tcp_connect_bnt.setChecked(False)
+                self._close_connect_bnt()
 
         else:
             print("tcp abort")
@@ -319,14 +321,17 @@ class TableWidget(QWidget):
             self.update_msg("myo disconnected")
 
             # # ===== button state set =====
-            self.tcp_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
-            self.tcp_send_bnt.setChecked(False)
-            self.tcp_send_bnt.setDisabled(True)
-            self.arm_cali_bnt.setDisabled(True)
-            self.arm_angle_bnt.setChecked(False)
-            self.arm_angle_bnt.setDisabled(True)
-            self.data_record_bnt.setChecked(False)
-            self.data_record_bnt.setDisabled(True)
+            self._close_connect_bnt()
+
+    def _close_connect_bnt(self):
+        self.tcp_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
+        self.tcp_send_bnt.setChecked(False)
+        self.tcp_send_bnt.setDisabled(True)
+        self.arm_cali_bnt.setDisabled(True)
+        self.arm_angle_bnt.setChecked(False)
+        self.arm_angle_bnt.setDisabled(True)
+        self.data_record_bnt.setChecked(False)
+        self.data_record_bnt.setDisabled(True)
 
     def tcp_send(self):
         if self.tcp_send_bnt.isChecked():

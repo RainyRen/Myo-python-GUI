@@ -161,6 +161,7 @@ class MyoListen(QThread):
 
     def _pub_mode(self):
         while self.hub.running:
+            t_start = time.time()
             self._get_devices_data()
 
             if self.send_signal:
@@ -171,12 +172,14 @@ class MyoListen(QThread):
                 print("stop myo")
                 break
 
-            time.sleep(1 / self.send_fs)
+            t_interval = time.time() - t_start
+            time.sleep((1 / self.send_fs) - t_interval)
             # pdb.set_trace()
 
     def _get_devices_data(self):
         self.device_data['emg'] = self.listener.get_emg_data
         self.device_data['rpy'] = self.listener.get_rpy
+        self.device_data['orientation'] = self.listener.get_orientation
         self.device_data['acceleration'] = self.listener.get_acceleration
         self.device_data['gyroscope'] = self.listener.get_gyroscope
         # self.device_data['myo_status'] = self.listener.get_device_state
@@ -184,20 +187,25 @@ class MyoListen(QThread):
         # print('\r{:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['rpy'][0]), end='')
 
         if self.get_arm_angle_signal:
+            # self.device_data['arm_angle'] = self.arm_angle.cal_arm_angle(
+            #     self.device_data['orientation'], self.device_data['acceleration'], self.device_data['gyroscope'])
             self.device_data['arm_angle'] = self.arm_angle.cal_arm_angle(self.device_data['rpy'])
             print('\r                 ', end='')
             print('\r{:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['arm_angle']), end='')
 
         else:
-            self.device_data['arm_angle'] = [[], []]
+            self.device_data['arm_angle'] = []
 
         if self.record_signal:
             save_data = [
                 element
-                for item in self.send_save
+                for item in self.send_save if item != 'arm_angle'
                 for device_id in range(self.devices_num)
                 for element in self.device_data[item][device_id]
             ]
+            if 'arm_angle' in self.send_save:
+                save_data.extend(self.device_data['arm_angle'])
+
             with open(self.record_file_name, 'a', newline='') as record_file:
                 writer = csv.writer(record_file)
                 writer.writerow(save_data)
@@ -216,6 +224,7 @@ class MyoListen(QThread):
                 self.get_arm_angle_signal = False
 
     def arm_calibration(self):
+        # self.arm_angle.calibration(self.device_data['orientation'])
         self.arm_angle.calibration(self.device_data['rpy'])
 
 
