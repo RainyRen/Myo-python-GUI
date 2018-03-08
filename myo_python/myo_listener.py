@@ -39,8 +39,8 @@ class Listener(myo.DeviceListener):
     def on_connect(self, device, timestamp, firmware_version):
         # print(device)
         device.set_stream_emg(myo.StreamEmg.enabled)
-        device.request_rssi()
-        device.request_battery_level()
+        # device.request_rssi()
+        # device.request_battery_level()
 
     def on_pair(self, device, timestamp, firmware_version):
         # pass

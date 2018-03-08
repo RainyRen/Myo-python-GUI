@@ -6,7 +6,7 @@ import pdb
 import time
 import yaml
 import json
-import csv
+# import csv
 
 import zmq
 from PyQt5.QtCore import QThread, QMutex, QMutexLocker, pyqtSignal
@@ -76,7 +76,7 @@ class MyoListen(QThread):
 
         self.send_signal = False
         self.record_signal = False
-        self.record_file_name = None
+        self.record_file = None
         self.mutex = QMutex()
         self.connect_state = True
 
@@ -129,8 +129,12 @@ class MyoListen(QThread):
 
     def record(self, file_name, is_record):
         with QMutexLocker(self.mutex):
-            self.record_file_name = file_name
             self.record_signal = is_record
+            if is_record:
+                self.record_file = open(file_name, 'a')
+
+            else:
+                self.record_file.close()
 
     def stop(self):
         with QMutexLocker(self.mutex):
@@ -173,7 +177,10 @@ class MyoListen(QThread):
                 break
 
             t_interval = time.time() - t_start
-            time.sleep((1 / self.send_fs) - t_interval)
+            pause_time = (1 / self.send_fs) - t_interval
+            if pause_time < 0:
+                print(pause_time)
+            time.sleep(pause_time if pause_time > 0 else 0)
             # pdb.set_trace()
 
     def _get_devices_data(self):
@@ -204,11 +211,13 @@ class MyoListen(QThread):
                 for element in self.device_data[item][device_id]
             ]
             if 'arm_angle' in self.send_save:
-                save_data.extend(self.device_data['arm_angle'])
+                save_data = list(self.device_data['arm_angle']) + save_data
 
-            with open(self.record_file_name, 'a', newline='') as record_file:
-                writer = csv.writer(record_file)
-                writer.writerow(save_data)
+            # with open(self.record_file_name, 'a', newline='') as record_file:
+                # writer = csv.writer(record_file, quoting=csv.QUOTE_NONE)
+                # writer.writerow(save_data)
+                contents = ','.join(map(lambda x: '{:.3f}'.format(x), save_data)) + '\n'
+                self.record_file.write(contents)
 
     def get_arm_angle(self, is_get):
         with QMutexLocker(self.mutex):

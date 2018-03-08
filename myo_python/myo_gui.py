@@ -275,14 +275,14 @@ class TableWidget(QWidget):
             self.config_dict['send_fs'] = self.send_fs.value()
             self.config_dict['send_save'] = []
 
-            if self.send_emg_checkbox.isChecked():
-                self.config_dict['send_save'].append('emg')
+            if self.send_arm_angle_checkbox.isChecked():
+                self.config_dict['send_save'].append('arm_angle')
 
             if self.send_imu_checkbox.isChecked():
                 self.config_dict['send_save'].extend(['rpy', 'gyroscope', 'acceleration'])
 
-            if self.send_arm_angle_checkbox.isChecked():
-                self.config_dict['send_save'].append('arm_angle')
+            if self.send_emg_checkbox.isChecked():
+                self.config_dict['send_save'].append('emg')
 
             if self.send_status_checkbox.isChecked():
                 self.config_dict['send_save'].append('myo_status')
