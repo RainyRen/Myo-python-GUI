@@ -178,6 +178,24 @@ class Filter(object):
         return signal.lfilter(self.b, self.a, data)
 
 
+class Complementary(object):
+    def __init__(self, dt, angle=0, a=0.98):
+        """
+        complementary filter in arm angle, do not use accelerometor
+        :param float dt:
+        :param float angle:
+        :param float a:
+        """
+        self.dt = dt
+        self.angle = angle
+        self._a = a
+        self._a_cpl = 1 - a
+
+    def get_angle(self, new_angle, gyr):
+        self.angle = self._a * (self.angle + gyr * self.dt) + self._a_cpl * new_angle
+        return self.angle
+
+
 class Kalman(object):
     def __init__(self):
         # # We will set the variables like so, these can also be tuned by the user

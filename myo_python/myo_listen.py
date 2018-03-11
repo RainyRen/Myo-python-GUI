@@ -26,13 +26,16 @@ class MyoListen(QThread):
 
         self.is_req_mode = config['req_mode']
         self.tcp_address = config['tcp_address']
-        self.do_filter = config['do_filter']
+        self.emg_filter = config['emg_filter']
         self.moving_ave = config['moving_ave']
         self.filter_order = config['filter_order']
         self.low_cutoff = config['low_cutoff']
         self.window_size = config['window_size']
         self.send_fs = config['send_fs']      # type: int
-        self.fs = 200       # device EMG sampling frequency
+        self.imu_filter = config['imu_filter']
+        self.complementary_a = config['complementary_a']
+        self.elbow_compensate_k = config['elbow_compensate_k']
+        self.emg_fs = 200       # device EMG sampling frequency
         self.connect_state = False
         self.send_save = config['send_save']
         print(self.send_save)
@@ -62,8 +65,8 @@ class MyoListen(QThread):
         # # ===== using event monitor =====
         # hub.set_locking_policy(libmyo.LockingPolicy.none)
         self.listener = Listener(
-            do_filter=self.do_filter, moving_ave=self.moving_ave,
-            filter_fs=self.fs, filter_order=self.filter_order, low_cutoff=self.low_cutoff,
+            do_filter=self.emg_filter, moving_ave=self.moving_ave,
+            filter_fs=self.emg_fs, filter_order=self.filter_order, low_cutoff=self.low_cutoff,
             window_size=self.window_size
         )
         self.device_data = dict()
@@ -196,7 +199,8 @@ class MyoListen(QThread):
         if self.get_arm_angle_signal:
             # self.device_data['arm_angle'] = self.arm_angle.cal_arm_angle(
             #     self.device_data['orientation'], self.device_data['acceleration'], self.device_data['gyroscope'])
-            self.device_data['arm_angle'] = self.arm_angle.cal_arm_angle(self.device_data['rpy'])
+            self.device_data['arm_angle'] = self.arm_angle.cal_arm_angle(
+                self.device_data['rpy'], gyr=self.device_data['gyroscope'])
             print('\r                 ', end='')
             print('\r{:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['arm_angle']), end='')
 
@@ -227,7 +231,10 @@ class MyoListen(QThread):
             elif is_get:
                 self.get_arm_angle_signal = True
                 # self.arm_angle = ArmAngle(self.device_data['orientation'], dt=0.02)
-                self.arm_angle = ArmAngle2()
+                self.arm_angle = ArmAngle2(
+                    self.device_data['rpy'],
+                    compensate_k=self.elbow_compensate_k, use_filter=self.imu_filter, dt=(1/self.send_fs)
+                )
 
             else:
                 self.get_arm_angle_signal = False

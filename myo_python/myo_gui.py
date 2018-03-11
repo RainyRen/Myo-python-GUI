@@ -1,4 +1,4 @@
-import pdb
+# import pdb
 import os
 import sys
 import yaml
@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PyQt5.QtWidgets import (
     QMainWindow, QApplication, QWidget, QTabWidget,
-    QHBoxLayout, QVBoxLayout, QFormLayout, QGridLayout, QFrame,
+    QHBoxLayout, QVBoxLayout, QFormLayout, QGridLayout,
     QPushButton, QTextEdit, QLabel, QLineEdit, QComboBox, QRadioButton, QCheckBox, QSpinBox, QButtonGroup
 )
 from PyQt5.QtGui import QIcon
@@ -144,7 +144,7 @@ class TableWidget(QWidget):
         self.tab_main.setLayout(self.tab_main.layout)
 
         # # ===================================== Create second tab ====================================================
-        self.myo_mode_group = QButtonGroup(self.tab_main)
+        self.myo_mode_group = QButtonGroup(self.tab_setting)
         self.myo_listen_radio_bnt = QRadioButton("Listen Mode")
         self.myo_listen_radio_bnt.setChecked(True)
         self.myo_feed_radio_bnt = QRadioButton("Feed Mode")
@@ -169,6 +169,20 @@ class TableWidget(QWidget):
         self.ma_length.setValue(50)
         self.ma_length.setRange(1, 1000)
 
+        self.elbow_compensate_k = QLineEdit("0.182")
+        self.elbow_compensate_k.setAlignment(Qt.AlignCenter)
+        self.arm_filter_group = QButtonGroup(self.tab_setting)
+        self.arm_complementary_bnt = QRadioButton("Complementary")
+        self.arm_complementary_bnt.setChecked(True)
+        self.arm_kalman_bnt = QRadioButton("Kalman")
+        self.arm_kalman_bnt.setCheckable(True)
+        self.arm_filter_group.addButton(self.arm_complementary_bnt)
+        self.arm_filter_group.addButton(self.arm_kalman_bnt)
+        self.arm_filter_group.setExclusive(False)
+        self.complementary_a = QLineEdit("0.98")
+        self.complementary_a.setAlignment(Qt.AlignCenter)
+
+        # # select record data content
         self.send_emg_checkbox = QCheckBox("EMG")
         self.send_emg_checkbox.setChecked(True)
         self.send_imu_checkbox = QCheckBox("IMU")
@@ -178,6 +192,7 @@ class TableWidget(QWidget):
         self.send_status_checkbox = QCheckBox("Status")
         self.send_status_checkbox.setChecked(False)
 
+        # # setting button
         self.setting_connect_bnt = QPushButton("connect")
         self.setting_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
         self.setting_abort_bnt = QPushButton("abort")
@@ -185,19 +200,23 @@ class TableWidget(QWidget):
         self.setting_abort_bnt.setDisabled(True)
         self.apply_setting_bnt = QPushButton("Apply")
 
+        # # setting display content
         self.display_screen = QTextEdit(self)
         self.display_screen.setReadOnly(True)
+        self.display_screen.setMaximumHeight(50)
 
+        # # setting sleep mode
         self.sleep_mode = QComboBox()
         self.sleep_mode.addItem("Normal")
         self.sleep_mode.addItem("Never")
 
-        # # define different area layout
+        # # ----- define different area layout -----
         self.tab_setting.layout = QVBoxLayout(self)
 
         high_level_layout = QGridLayout()
         high_level_layout.addWidget(self.myo_listen_radio_bnt, 0, 0)
         high_level_layout.addWidget(self.myo_feed_radio_bnt, 0, 1)
+
         high_level_layout.addWidget(self.hpf_checkbox, 1, 0)
         high_level_layout.addWidget(self.ma_checkbox, 1, 1)
         high_level_layout.addWidget(QLabel("Filter Oder:"), 2, 0)
@@ -206,11 +225,19 @@ class TableWidget(QWidget):
         high_level_layout.addWidget(self.hpf_cutoff_fs, 3, 1)
         high_level_layout.addWidget(QLabel("MA Length:"), 4, 0)
         high_level_layout.addWidget(self.ma_length, 4, 1)
-        high_level_layout.addWidget(QLabel("Send / Save  Select"), 5, 0, 1, 2)
-        high_level_layout.addWidget(self.send_emg_checkbox, 6, 0)
-        high_level_layout.addWidget(self.send_imu_checkbox, 6, 1)
-        high_level_layout.addWidget(self.send_arm_angle_checkbox, 7, 0)
-        high_level_layout.addWidget(self.send_status_checkbox, 7, 1)
+
+        high_level_layout.addWidget(QLabel("Elbow Compensate:"), 5, 0)
+        high_level_layout.addWidget(self.elbow_compensate_k, 5, 1)
+        high_level_layout.addWidget(self.arm_complementary_bnt, 6, 0)
+        high_level_layout.addWidget(self.arm_kalman_bnt, 6, 1)
+        high_level_layout.addWidget(QLabel("Complementary a:"), 7, 0)
+        high_level_layout.addWidget(self.complementary_a, 7, 1)
+
+        high_level_layout.addWidget(QLabel("Send / Save  Select"), 8, 0, 1, 2)
+        high_level_layout.addWidget(self.send_arm_angle_checkbox, 9, 0)
+        high_level_layout.addWidget(self.send_imu_checkbox, 9, 1)
+        high_level_layout.addWidget(self.send_emg_checkbox, 10, 0)
+        high_level_layout.addWidget(self.send_status_checkbox, 10, 1)
 
         connect_layout = QHBoxLayout(self)
         connect_layout.addWidget(self.setting_connect_bnt)
@@ -265,14 +292,17 @@ class TableWidget(QWidget):
             # print(self.ma_length.value())
 
             # # ===== save config file =====
-            self.config_dict['req_mode'] = self.req_radio_bnt.isChecked()
-            self.config_dict['do_filter'] = self.hpf_checkbox.isChecked()
-            self.config_dict['moving_ave'] = self.ma_checkbox.isChecked()
-            self.config_dict['filter_order'] = self.hpf_filter_oder.value()
-            self.config_dict['low_cutoff'] = self.hpf_cutoff_fs.value()
-            self.config_dict['window_size'] = self.ma_length.value()
-            self.config_dict['tcp_address'] = self.tcp_address.text()
-            self.config_dict['send_fs'] = self.send_fs.value()
+            self.config_dict['req_mode'] = self.req_radio_bnt.isChecked()       # type: bool
+            self.config_dict['emg_filter'] = self.hpf_checkbox.isChecked()      # type: bool
+            self.config_dict['moving_ave'] = self.ma_checkbox.isChecked()       # type: bool
+            self.config_dict['filter_order'] = self.hpf_filter_oder.value()     # type: int
+            self.config_dict['low_cutoff'] = self.hpf_cutoff_fs.value()         # type: int
+            self.config_dict['window_size'] = self.ma_length.value()            # type: int
+            self.config_dict['tcp_address'] = self.tcp_address.text()           # type: str
+            self.config_dict['send_fs'] = self.send_fs.value()                  # type: int
+            self.config_dict['elbow_compensate_k'] = float(self.elbow_compensate_k.text())      # type: float
+            self.config_dict['imu_filter'] = self.arm_complementary_bnt.isChecked()             # type: bool
+            self.config_dict['complementary_a'] = float(self.complementary_a.text())            # type: float
             self.config_dict['send_save'] = []
 
             if self.send_arm_angle_checkbox.isChecked():

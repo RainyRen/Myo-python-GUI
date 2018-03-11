@@ -9,7 +9,7 @@ import zmq
 from PyQt5.QtCore import QThread, QMutex, QMutexLocker, pyqtSignal
 
 import myo
-from myo_preprocess import Filter
+from myo_filter import Filter
 
 
 class MyoFeed(QThread):
