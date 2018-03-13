@@ -316,6 +316,9 @@ class ArmAngle2(object):
         else:
             self.angle_7 = (forearm[1] - self.forearm_bias[1]) - self.angle_5
 
-        self.angle_7 *= (1 + self.compensate_k)
+        if self.angle_7 > 0:
+            self.angle_7 *= (1 + self.compensate_k)
+        else:
+            self.angle_7 = 0
 
         return self.angle_2, self.angle_5, self.angle_6, self.angle_7

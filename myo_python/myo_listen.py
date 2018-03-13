@@ -109,6 +109,7 @@ class MyoListen(QThread):
                 self.msg_signal.emit('Myo {} wear on {}'.format(device_id, device_arm))
 
             print("Start Dongle")
+            time.sleep(0.5)
             if self.is_req_mode:
                 print("request mode on")
                 self._req_mode()

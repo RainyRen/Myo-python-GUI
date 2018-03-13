@@ -3,6 +3,7 @@ import os
 import sys
 import yaml
 import csv
+import time
 from pathlib import Path
 
 from PyQt5.QtWidgets import (
@@ -348,7 +349,10 @@ class TableWidget(QWidget):
             print("tcp abort")
             self.myo_dongle.stop()
             self.myo_dongle.quit()
+            time.sleep(0.5)
+            # self.myo_dongle.terminate()
             self.update_msg("myo disconnected")
+            self.myo_dongle = None
 
             # # ===== button state set =====
             self._close_connect_bnt()
@@ -453,6 +457,7 @@ class TableWidget(QWidget):
             print("force shutdown myo hub")
             self.myo_dongle.hub.stop(True)
             self.myo_dongle.hub.shutdown()
+
         QApplication.instance().quit()
 
 
