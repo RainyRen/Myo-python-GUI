@@ -30,9 +30,9 @@ def basic_model(model_config, inference=False):
         merge_data = Concatenate()([kinematic_rnn_cell, emg_rnn_cell])
 
         hidden_1 = TimeDistributed(Dense(hidden_1_neurons, activation='relu'))(merge_data)
-        hidden_1 = Dropout(0.2)(hidden_1)
+        hidden_1 = Dropout(0.25)(hidden_1)
         hidden_2 = TimeDistributed(Dense(hidden_2_neurons, activation='relu'))(hidden_1)
-        hidden_2 = Dropout(0.2)(hidden_2)
+        hidden_2 = Dropout(0.25)(hidden_2)
         output = TimeDistributed(Dense(3, activation=None))(hidden_2)
 
         model = Model([input_kinematic, input_emg], output)

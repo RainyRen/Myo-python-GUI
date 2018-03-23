@@ -94,6 +94,10 @@ class TableWidget(QWidget):
         self.file_delete_bnt = QPushButton("delete")
         self.file_delete_bnt.setIcon(QIcon(str(IMAGE_PATH / "delete.png")))
 
+        self.estimator_bnt = QPushButton("estimator")
+        self.estimator_bnt.setIcon(QIcon(str(IMAGE_PATH / "estimator.png")))
+        self.estimator_bnt.setDisabled(True)
+
         self.tcp_address = QLineEdit("127.0.0.1:5555")
         self.file_name = QLineEdit("default")
         self.file_name.setAlignment(Qt.AlignCenter)
@@ -141,6 +145,7 @@ class TableWidget(QWidget):
         self.tab_main.layout.addLayout(tcp_bnt_layout)
         self.tab_main.layout.addLayout(arm_angle_layout)
         self.tab_main.layout.addLayout(file_bnt_layout)
+        self.tab_main.layout.addWidget(self.estimator_bnt)
         self.tab_main.layout.addWidget(self.myo_msg)
         self.tab_main.setLayout(self.tab_main.layout)
 
@@ -327,6 +332,7 @@ class TableWidget(QWidget):
             self.arm_cali_bnt.setDisabled(False)
             self.arm_angle_bnt.setDisabled(False)
             self.data_record_bnt.setDisabled(False)
+            self.estimator_bnt.setDisabled(True)
 
             # # ===== run myo feed =====
             if self.myo_listen_radio_bnt.isChecked():
@@ -366,6 +372,7 @@ class TableWidget(QWidget):
         self.arm_angle_bnt.setDisabled(True)
         self.data_record_bnt.setChecked(False)
         self.data_record_bnt.setDisabled(True)
+        self.estimator_bnt.setDisabled(True)
 
     def tcp_send(self):
         if self.tcp_send_bnt.isChecked():

@@ -25,7 +25,6 @@ def train(train_data, validation_data, config):
     :param tuple validation_data:
     """
     save_folder = EXP_PATH / config['exp_folder']
-    pdb.set_trace()
 
     if save_folder.exists():
         user_input = input('folder {} already exist, do you want to overrider? [y/n] '
@@ -36,6 +35,9 @@ def train(train_data, validation_data, config):
     else:
         print('create new folder {}'.format(save_folder.stem))
         save_folder.mkdir()
+    # save training config to file
+    with open(str(save_folder / 'config.yml'), 'w') as write_file:
+        yaml.dump(config, write_file, default_flow_style=False)
 
     tr_kinematic, tr_emg, tr_target = train_data
     val_kinematice, val_emg, val_target = validation_data
@@ -63,7 +65,7 @@ if __name__ == "__main__":
     with open(str(CONFIG_PATH / 'train_default.yml'), 'r') as config_file:
         config = yaml.load(config_file)
 
-    data_mg = DataManager('./data', time_length=config['time_length'])
+    data_mg = DataManager('./data/20hz', time_length=config['time_length'])
     print("organising materials...")
     tr_data, val_data = data_mg.get_all_data()
     pdb.set_trace()

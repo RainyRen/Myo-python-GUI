@@ -318,6 +318,8 @@ class ArmAngle2(object):
 
         if self.angle_7 > 0:
             self.angle_7 *= (1 + self.compensate_k)
+            if self.angle_7 > 90:
+                self.angle_7 = 90
         else:
             self.angle_7 = 0
 

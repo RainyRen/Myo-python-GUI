@@ -6,6 +6,9 @@ __pycache__/
 # data / result / model file
 *data/
 *result/
+*exp/
+VI Libraries/
+typeDef/
 
 # special file
 myo_python/config/ini_config.yml
