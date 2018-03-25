@@ -11,7 +11,13 @@ from keras.layers import (Input, Concatenate,
 from keras.callbacks import Callback
 
 
-def basic_model(model_config, inference=False):
+def multi2multi(model_config, inference=False):
+    """
+    multiple input get multiple output, return are vector
+    :param dict model_config:
+    :param bool inference:
+    :return:
+    """
     if inference:
         print("load exits model")
     else:
@@ -24,8 +30,16 @@ def basic_model(model_config, inference=False):
         input_emg = Input(shape=(model_config['time_length'], 16))
 
         # # define structures
-        kinematic_rnn_cell = GRU(rnn_neurons, dropout=0.2, return_sequences=True)(input_kinematic)
-        emg_rnn_cell = GRU(rnn_neurons, dropout=0.2, return_sequences=True)(input_emg)
+        kinematic_rnn_cell = GRU(
+            rnn_neurons,
+            dropout=0.2,
+            return_sequences=True,
+            stateful=False)(input_kinematic)
+        emg_rnn_cell = GRU(
+            rnn_neurons,
+            dropout=0.2,
+            return_sequences=True,
+            stateful=False)(input_emg)
 
         merge_data = Concatenate()([kinematic_rnn_cell, emg_rnn_cell])
 
@@ -37,7 +51,52 @@ def basic_model(model_config, inference=False):
 
         model = Model([input_kinematic, input_emg], output)
         model.summary()
-        model.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
+        model.compile(optimizer='rmsprop', loss='mean_squared_error', metrics=['mae'])
+
+        return model
+
+
+def multi2one(model_config, inference=False):
+    """
+
+    :param dict model_config:
+    :param bool inference:
+    :return:
+    """
+    if inference:
+        print("load exits model")
+    else:
+        rnn_neurons = model_config['rnn_neurons']
+        hidden_1_neurons = model_config['hidden_1_neurons']
+        hidden_2_neurons = model_config['hidden_2_neurons']
+
+        # # define two separate inputs
+        input_kinematic = Input(shape=(model_config['time_length'], 16))
+        input_emg = Input(shape=(model_config['time_length'], 16))
+
+        # # define structures
+        kinematic_rnn_cell = GRU(
+            rnn_neurons,
+            dropout=0.2,
+            return_sequences=False,
+            stateful=False)(input_kinematic)
+        emg_rnn_cell = GRU(
+            rnn_neurons,
+            dropout=0.2,
+            return_sequences=False,
+            stateful=False)(input_emg)
+
+        merge_data = Concatenate()([kinematic_rnn_cell, emg_rnn_cell])
+
+        hidden_1 = Dense(hidden_1_neurons, activation='relu')(merge_data)
+        hidden_1 = Dropout(0.25)(hidden_1)
+        hidden_2 = Dense(hidden_2_neurons, activation='relu')(hidden_1)
+        hidden_2 = Dropout(0.25)(hidden_2)
+        output = Dense(3, activation=None)(hidden_2)
+
+        model = Model([input_kinematic, input_emg], output)
+        model.summary()
+        model.compile(optimizer='rmsprop', loss='mean_squared_error', metrics=['mae'])
 
         return model
 

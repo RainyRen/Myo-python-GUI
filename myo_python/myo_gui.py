@@ -71,9 +71,9 @@ class TableWidget(QWidget):
         self.quit_bnt.setStyleSheet("background-color: #EF5350")
 
         # # ===== Create first tab =====
-        self.tcp_connect_bnt = QPushButton("connect")
-        self.tcp_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
-        self.tcp_connect_bnt.setCheckable(True)
+        self.myo_connect_bnt = QPushButton("connect")
+        self.myo_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
+        self.myo_connect_bnt.setCheckable(True)
         self.tcp_send_bnt = QPushButton("send")
         self.tcp_send_bnt.setIcon(QIcon(str(IMAGE_PATH / "send.png")))
         self.tcp_send_bnt.setCheckable(True)
@@ -96,6 +96,7 @@ class TableWidget(QWidget):
 
         self.estimator_bnt = QPushButton("estimator")
         self.estimator_bnt.setIcon(QIcon(str(IMAGE_PATH / "estimator.png")))
+        self.estimator_bnt.setCheckable(True)
         self.estimator_bnt.setDisabled(True)
 
         self.tcp_address = QLineEdit("127.0.0.1:5555")
@@ -127,9 +128,9 @@ class TableWidget(QWidget):
         grid_layout.addWidget(QLabel("File Name:"), 8, 0)
         grid_layout.addWidget(self.file_name, 8, 1)
 
-        tcp_bnt_layout = QHBoxLayout()
-        tcp_bnt_layout.addWidget(self.tcp_connect_bnt)
-        tcp_bnt_layout.addWidget(self.tcp_send_bnt)
+        myo_tcp_layout = QHBoxLayout()
+        myo_tcp_layout.addWidget(self.myo_connect_bnt)
+        myo_tcp_layout.addWidget(self.tcp_send_bnt)
 
         arm_angle_layout = QHBoxLayout()
         arm_angle_layout.addWidget(self.arm_cali_bnt)
@@ -142,7 +143,7 @@ class TableWidget(QWidget):
         # # organize layout
         self.tab_main.layout = QVBoxLayout(self)
         self.tab_main.layout.addLayout(grid_layout)
-        self.tab_main.layout.addLayout(tcp_bnt_layout)
+        self.tab_main.layout.addLayout(myo_tcp_layout)
         self.tab_main.layout.addLayout(arm_angle_layout)
         self.tab_main.layout.addLayout(file_bnt_layout)
         self.tab_main.layout.addWidget(self.estimator_bnt)
@@ -270,7 +271,7 @@ class TableWidget(QWidget):
         # # Add button functions
         self.quit_bnt.clicked.connect(self.quit)
 
-        self.tcp_connect_bnt.clicked.connect(self.tcp_connect)
+        self.myo_connect_bnt.clicked.connect(self.connect_myo)
         self.tcp_send_bnt.clicked.connect(self.tcp_send)
 
         self.arm_cali_bnt.clicked.connect(self.arm_calibration)
@@ -278,6 +279,8 @@ class TableWidget(QWidget):
 
         self.data_record_bnt.clicked.connect(self.data_record)
         self.file_delete_bnt.clicked.connect(self.delete_file)
+
+        self.estimator_bnt.clicked.connect(self.estimator)
 
         self.setting_connect_bnt.clicked.connect(self.setting_connect)
         self.setting_abort_bnt.clicked.connect(self.setting_abort)
@@ -287,11 +290,15 @@ class TableWidget(QWidget):
         # print("got msg!!!")
         self.myo_msg.append(receive_msg)
 
-    def tcp_connect(self):
-        if self.tcp_connect_bnt.isChecked():
+    def connect_myo(self):
+        """
+        start myo and open tcp port for connected
+        :return:
+        """
+        if self.myo_connect_bnt.isChecked():
             self.myo_msg.clear()
             print("=================")
-            print("tcp connect")
+            print("connect to myo hub")
             # use_hpf = self.hpf_checkbox.isChecked()
             # print(use_hpf)
             # print(self.hpf_cutoff_fs.value())
@@ -327,12 +334,11 @@ class TableWidget(QWidget):
                 yaml.dump(self.config_dict, config_file, default_flow_style=False)
 
             # # ===== button state set =====
-            self.tcp_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "abort.png")))
+            self.myo_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "abort.png")))
             self.tcp_send_bnt.setDisabled(False)
             self.arm_cali_bnt.setDisabled(False)
             self.arm_angle_bnt.setDisabled(False)
             self.data_record_bnt.setDisabled(False)
-            self.estimator_bnt.setDisabled(True)
 
             # # ===== run myo feed =====
             if self.myo_listen_radio_bnt.isChecked():
@@ -348,11 +354,10 @@ class TableWidget(QWidget):
 
             else:
                 self.update_msg("connect fail")
-                self.tcp_connect_bnt.setChecked(False)
+                self.myo_connect_bnt.setChecked(False)
                 self._close_connect_bnt()
 
         else:
-            print("tcp abort")
             self.myo_dongle.stop()
             self.myo_dongle.quit()
             time.sleep(0.5)
@@ -364,7 +369,7 @@ class TableWidget(QWidget):
             self._close_connect_bnt()
 
     def _close_connect_bnt(self):
-        self.tcp_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
+        self.myo_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
         self.tcp_send_bnt.setChecked(False)
         self.tcp_send_bnt.setDisabled(True)
         self.arm_cali_bnt.setDisabled(True)
@@ -389,14 +394,36 @@ class TableWidget(QWidget):
         if self.arm_angle_bnt.isChecked():
             self.update_msg("get arm angle...")
             self.myo_dongle.get_arm_angle(True)
+
+            # # open button can use
             self.arm_cali_bnt.setDisabled(False)
+            self.estimator_bnt.setDisabled(False)
 
         else:
             self.update_msg("stop get arm angle...")
             self.myo_dongle.get_arm_angle(False)
             self.arm_cali_bnt.setDisabled(True)
 
+            if self.myo_dongle.estimate_signal:
+                self.myo_dongle.get_estimate_angle(False)
+            self.estimator_bnt.setDisabled(True)
+
+    def estimator(self):
+        if self.estimator_bnt.isChecked():
+            print('estimator turn on')
+            self.update_msg('estimator turn on')
+            self.myo_dongle.get_estimate_angle(True, model_path=Path('./exp/multi2one'))
+
+        else:
+            print('estimator turn off')
+            self.update_msg('estimator turn off')
+            self.myo_dongle.get_estimate_angle(False)
+
     def data_record(self):
+        """
+        record data when clicked. Automatic check file exists, if file exists, append to it's bottom
+        :return: None
+        """
         if self.data_record_bnt.isChecked():
             save_file_name = self._get_save_file_name()
             if not Path(save_file_name).exists():
@@ -418,6 +445,10 @@ class TableWidget(QWidget):
         pass
 
     def delete_file(self):
+        """
+        delete file shown in the screen, if file doesn't exists will do nothing
+        :return:
+        """
         save_file_name = Path(self._get_save_file_name())
         if save_file_name.exists():
             os.remove(str(save_file_name))
@@ -440,6 +471,11 @@ class TableWidget(QWidget):
 
         return file_name
 
+    # # ===== second tabs button functions =====
+    """
+    !!! below are only display result, not really work
+    Haven't finished!!!
+    """
     @pyqtSlot()
     def setting_connect(self):
         print("setting connect")
@@ -461,9 +497,10 @@ class TableWidget(QWidget):
     def quit(self):
         # # check myo hub to stop if run
         if self.myo_dongle is not None:
-            print("force shutdown myo hub")
-            self.myo_dongle.hub.stop(True)
-            self.myo_dongle.hub.shutdown()
+            if self.myo_dongle.hub is not None:
+                print("force shutdown myo hub")
+                self.myo_dongle.hub.stop(True)
+                self.myo_dongle.hub.shutdown()
 
         QApplication.instance().quit()
 

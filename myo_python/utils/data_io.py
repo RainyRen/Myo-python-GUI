@@ -7,9 +7,19 @@ import numpy as np
 
 
 class DataManager(object):
-    def __init__(self, file_path, separate_rate=0.2, time_length=15):
+    def __init__(self, file_path, separate_rate=0.2, time_length=15, future_time=1, one_target=True):
+        """
+        data pre-processing, sort out to the format we needed
+        :param file_path:
+        :param separate_rate:
+        :param time_length:
+        :param future_time:
+        :param one_target:
+        """
         self.file_path = Path(file_path)
         self.time_length = time_length
+        self.future_time = future_time
+        self.one_target = one_target
 
         self.tr_kinematic = list()
         self.tr_emg = list()
@@ -42,7 +52,8 @@ class DataManager(object):
             self.val_target.append(target)
 
         tr = list(map(lambda x: np.concatenate(x, axis=0), [self.tr_kinematic, self.tr_emg, self.tr_target]))
-        val = list(map(lambda x: np.concatenate(x, axis=0), [self.val_kinematic, self.val_emg, self.val_target]))
+        val = list(map(lambda x: np.concatenate(x, axis=0), [self.val_kinematic, self.val_emg, self.val_target]))\
+            if self.separate_rate > 0 else None
 
         return tr, val
 
@@ -79,7 +90,10 @@ class DataManager(object):
             gyro_samples.append(gyro[s:e])
             acc_samples.append(acc[s:e])
             emg_samples.append(emg[s:e])
-            target_samples.append(arm_angle[s + 1:e + 1, [0, 1, 3]])
+            if self.one_target:
+                target_samples.append(arm_angle[e + self.future_time - 1, [0, 1, 3]])
+            else:
+                target_samples.append(arm_angle[s + self.future_time:e + +self.future_time, [0, 1, 3]])
 
         arm_angle_samples = np.asarray(arm_angle_samples)
         gyro_samples = np.asarray(gyro_samples)

@@ -9,7 +9,7 @@ from pathlib import Path
 from keras.callbacks import ModelCheckpoint
 
 from utils.data_io import DataManager
-from models.post_fusion import basic_model
+from models.post_fusion import multi2one
 
 # # ===== global parameters =====
 ROOT_PATH = Path(__file__).parent
@@ -23,6 +23,7 @@ def train(train_data, validation_data, config):
     """
     :param tuple train_data: tuple contain three type of training data
     :param tuple validation_data:
+    :param dict config:
     """
     save_folder = EXP_PATH / config['exp_folder']
 
@@ -40,34 +41,45 @@ def train(train_data, validation_data, config):
         yaml.dump(config, write_file, default_flow_style=False)
 
     tr_kinematic, tr_emg, tr_target = train_data
-    val_kinematice, val_emg, val_target = validation_data
-    model = basic_model(config)
+    val_kinematic, val_emg, val_target = validation_data
+    model = multi2one(config)
 
     checkpoint = ModelCheckpoint(
         filepath=str(save_folder / 'rnn_best.h5'),
         verbose=1,
         save_best_only=True,
         save_weights_only=False,
-        monitor='val_acc',
-        mode='max')
+        monitor='val_loss',
+        mode='min'
+    )
 
     model.fit(
         x=[tr_kinematic, tr_emg], y=tr_target,
-        validation_data=([val_kinematice, val_emg], val_target),
+        validation_data=([val_kinematic, val_emg], val_target),
         batch_size=config['batch_size'],
         epochs=config['epochs'],
         callbacks=[checkpoint],
-        shuffle=True
+        shuffle=False
     )
 
 
 if __name__ == "__main__":
+    # # ===== load config from config file =====
     with open(str(CONFIG_PATH / 'train_default.yml'), 'r') as config_file:
-        config = yaml.load(config_file)
+        train_config = yaml.load(config_file)
 
-    data_mg = DataManager('./data/20hz', time_length=config['time_length'])
+    # # ===== get pre-processed data =====
+    data_mg = DataManager(
+        './data/' + str(train_config['fs']) + 'hz',
+        separate_rate=0.2,
+        time_length=train_config['time_length'],
+        future_time=1,
+        one_target=True
+    )
     print("organising materials...")
     tr_data, val_data = data_mg.get_all_data()
     pdb.set_trace()
-    train(tr_data, val_data, config)
+
+    # # ===== training model =====
+    train(tr_data, val_data, train_config)
     print("Finished training!")

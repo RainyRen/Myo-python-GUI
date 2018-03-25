@@ -2,15 +2,20 @@
 """
 The Script are writen in python 3
 """
+# # ===== build-in library =====
 import pdb
 import time
 import yaml
 import json
-# import csv
+from collections import deque
 
+# # ===== third party library =====
 import zmq
 from PyQt5.QtCore import QThread, QMutex, QMutexLocker, pyqtSignal
+import numpy as np
+from keras.models import load_model
 
+# # ===== own library =====
 import myo
 from myo_listener import Listener, ArmAngle2
 
@@ -38,16 +43,10 @@ class MyoListen(QThread):
         self.emg_fs = 200       # device EMG sampling frequency
         self.connect_state = False
         self.send_save = config['send_save']
-        print(self.send_save)
-        # # ===== initial zmq protocol =====
-        context = zmq.Context()
-        if self.is_req_mode:
-            self.socket = context.socket(zmq.REP)
-        else:
-            self.socket = context.socket(zmq.PUB)
-        # # tcp address use tcp://127.0.0.1:5555
-        self.socket.bind("tcp://" + self.tcp_address)
-        print("Server start at localhost:5555")
+        print('save content: ', self.send_save)
+
+        # # ===== socket initial =====
+        self.socket = None
 
         # # ===== try initial myo =====
         if not myo.myo_initialized():
@@ -60,6 +59,7 @@ class MyoListen(QThread):
 
         except MemoryError:
             print("Myo Hub could not be created. Make sure Myo Connect is running.")
+            self.hub = None
             return
 
         # # ===== using event monitor =====
@@ -76,6 +76,12 @@ class MyoListen(QThread):
 
         self.get_arm_angle_signal = False
         self.arm_angle = None
+
+        self.estimate_signal = False
+        self.estimator = None
+        self._kinematic_window = None
+        self._emg_window = None
+        self._model_window_size = 0
 
         self.send_signal = False
         self.record_signal = False
@@ -123,13 +129,32 @@ class MyoListen(QThread):
 
         finally:
             print("close hub & socket")
-            self.socket.close()
+            if self.socket is not None:
+                self.socket.close()
             self.hub.stop(True)
             self.hub.shutdown()
 
     def send(self, is_send):
         with QMutexLocker(self.mutex):
-            self.send_signal = is_send
+            if is_send:
+                # # ===== initial zmq protocol =====
+                context = zmq.Context()
+                if self.is_req_mode:
+                    self.socket = context.socket(zmq.REP)
+                else:
+                    self.socket = context.socket(zmq.PUB)
+                # # tcp address use tcp://127.0.0.1:5555
+                self.socket.bind("tcp://" + self.tcp_address)
+                self.msg_signal.emit('tcp server start')
+                print("Server start at {}".format(self.tcp_address))
+                self.send_signal = True
+
+            else:
+                self.send_signal = False
+                self.msg_signal.emit('stop tcp server')
+                print('stop tcp server')
+                self.socket.close()
+                self.socket = None
 
     def record(self, file_name, is_record):
         with QMutexLocker(self.mutex):
@@ -200,13 +225,29 @@ class MyoListen(QThread):
         if self.get_arm_angle_signal:
             # self.device_data['arm_angle'] = self.arm_angle.cal_arm_angle(
             #     self.device_data['orientation'], self.device_data['acceleration'], self.device_data['gyroscope'])
-            self.device_data['arm_angle'] = self.arm_angle.cal_arm_angle(
-                self.device_data['rpy'], gyr=self.device_data['gyroscope'])
+            self.device_data['arm_angle'] = list(self.arm_angle.cal_arm_angle(
+                self.device_data['rpy'], gyr=self.device_data['gyroscope']))
             print('\r                 ', end='')
             print('\r{:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['arm_angle']), end='')
 
         else:
             self.device_data['arm_angle'] = []
+
+        if self.estimate_signal:
+            # # it must be two myo, so directly select two data
+            arm_angle = self.device_data['arm_angle']
+            gyr = self.device_data['gyroscope'][0] + self.device_data['gyroscope'][1]
+            acc = self.device_data['acceleration'][0] + self.device_data['acceleration'][1]
+            self._kinematic_window.append(arm_angle + gyr + acc)
+            self._emg_window.append(self.device_data['emg'][0] + self.device_data['emg'][1])
+            if len(self._kinematic_window) == self._model_window_size:
+                self.device_data['estimate_angle'] = self.estimator.predict(
+                    [np.asarray(self._kinematic_window)[np.newaxis, :], np.asarray(self._emg_window)[np.newaxis, :]],
+                    batch_size=1,
+                ).ravel().tolist()
+                print('  {:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['estimate_angle']), end='')
+        else:
+            self.device_data['estimate_angle'] = []
 
         if self.record_signal:
             save_data = [
@@ -230,12 +271,12 @@ class MyoListen(QThread):
                 print('acquire more myo on arm!')
 
             elif is_get:
-                self.get_arm_angle_signal = True
                 # self.arm_angle = ArmAngle(self.device_data['orientation'], dt=0.02)
                 self.arm_angle = ArmAngle2(
                     self.device_data['rpy'],
                     compensate_k=self.elbow_compensate_k, use_filter=self.imu_filter, dt=(1/self.send_fs)
                 )
+                self.get_arm_angle_signal = True
 
             else:
                 self.get_arm_angle_signal = False
@@ -243,6 +284,25 @@ class MyoListen(QThread):
     def arm_calibration(self):
         # self.arm_angle.calibration(self.device_data['orientation'])
         self.arm_angle.calibration(self.device_data['rpy'])
+
+    def get_estimate_angle(self, is_get, model_path=None):
+        with QMutexLocker(self.mutex):
+            if is_get:
+                with open(str(model_path / 'config.yml'), 'r') as model_config_file:
+                    model_config = yaml.load(model_config_file)
+                    self._model_window_size = model_config['time_length']
+
+                self.estimator = load_model(str(model_path / 'rnn_best.h5'))
+                self.estimator._make_predict_function()
+                self._kinematic_window = deque(maxlen=self._model_window_size)
+                self._emg_window = deque(maxlen=self._model_window_size)
+                self.estimate_signal = True
+
+            else:
+                self.estimate_signal = False
+                self.estimator = None
+                self._kinematic_window = None
+                self._emg_window = None
 
 
 if __name__ == '__main__':
