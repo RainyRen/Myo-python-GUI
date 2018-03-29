@@ -9,6 +9,7 @@ from keras.layers import (Input, Concatenate,
                           GRU)
 # from keras.optimizers import Adam
 from keras.callbacks import Callback
+import tensorflow as tf
 
 
 def multi2multi(model_config, inference=False):
@@ -26,7 +27,7 @@ def multi2multi(model_config, inference=False):
         hidden_2_neurons = model_config['hidden_2_neurons']
 
         # # define two separate inputs
-        input_kinematic = Input(shape=(model_config['time_length'], 16))
+        input_kinematic = Input(shape=(model_config['time_length'], 15))
         input_emg = Input(shape=(model_config['time_length'], 16))
 
         # # define structures
@@ -71,7 +72,7 @@ def multi2one(model_config, inference=False):
         hidden_2_neurons = model_config['hidden_2_neurons']
 
         # # define two separate inputs
-        input_kinematic = Input(shape=(model_config['time_length'], 16))
+        input_kinematic = Input(shape=(model_config['time_length'], 15))
         input_emg = Input(shape=(model_config['time_length'], 16))
 
         # # define structures
@@ -123,6 +124,31 @@ class DumpHistory(Callback):
                 logs.get('val_acc'),
             )
             log_file.write(log)
+
+
+# # ========== tensorflow model ==========
+class Multi2One(object):
+    def __init__(self, model_config):
+        """
+
+        """
+        self.model_config = model_config
+        self.dropout_rate = 0.2
+
+        # # ===== build graph =====
+        self.kinematic_in = tf.placeholder(tf.float32, [None, self.model_config['time_length'], 15])
+        self.emg_in = tf.placeholder(tf.float32, [None, self.model_config['time_length'], 16])
+
+        self.kinematic_rnn_cell = tf.contrib.rnn.GRUCell(self.model_config['rnn_neurons'])
+        self.kinematic_rnn_cell = tf.contrib.rnn.DropoutWrapper(
+            self.kinematic_rnn_cell,
+            input_keep_prob=1.0 - self.dropout_rate,
+            output_keep_prob=1.0 - self.dropout_rate,
+            state_keep_prob=1.0 - self.dropout_rate,
+            variational_recurrent=False
+        )
+
+        self.emg_rnn_cell = tf.contrib.rnn.BasicGRUCellLSTMCell()
 
 
 if __name__ == "__main__":

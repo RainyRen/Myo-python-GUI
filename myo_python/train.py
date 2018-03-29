@@ -65,15 +65,15 @@ def train(train_data, validation_data, config):
 
 if __name__ == "__main__":
     # # ===== load config from config file =====
-    with open(str(CONFIG_PATH / 'train_default.yml'), 'r') as config_file:
+    with open(str(CONFIG_PATH / 'train_keras.yml'), 'r') as config_file:
         train_config = yaml.load(config_file)
 
     # # ===== get pre-processed data =====
     data_mg = DataManager(
         './data/' + str(train_config['fs']) + 'hz',
-        separate_rate=0.2,
+        separate_rate=train_config['separate_rate'],
         time_length=train_config['time_length'],
-        future_time=1,
+        future_time=train_config['future_time'],
         one_target=True
     )
     print("organising materials...")

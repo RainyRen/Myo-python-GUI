@@ -74,26 +74,26 @@ class DataManager(object):
         target_samples = list()
 
         data_df = pd.read_csv(file_path, skiprows=1, header=None)
-        n_sample = data_df.shape[0] // self.time_length
-        if data_df.shape[0] % self.time_length == 0:
-            n_sample -= 1
+        n_sample = data_df.shape[0] - self.time_length
 
-        samples_pool = [(i * self.time_length, (i + 1) * self.time_length) for i in range(n_sample)]
+        # samples_pool = [(i * self.time_length, (i + 1) * self.time_length) for i in range(n_sample)]
 
         arm_angle = data_df.iloc[:, :4].values
         gyro = data_df.iloc[:, 10:16].values
         acc = data_df.iloc[:, 16:22].values
         emg = data_df.iloc[:, 22:38].values
 
-        for s, e in samples_pool:
-            arm_angle_samples.append(arm_angle[s:e])
-            gyro_samples.append(gyro[s:e])
-            acc_samples.append(acc[s:e])
-            emg_samples.append(emg[s:e])
+        for i in range(n_sample):
+            arm_angle_samples.append(arm_angle[i:i + self.time_length, [0, 1, 3]])
+            gyro_samples.append(gyro[i:i + self.time_length])
+            acc_samples.append(acc[i:i + self.time_length])
+            emg_samples.append(emg[i:i + self.time_length])
             if self.one_target:
-                target_samples.append(arm_angle[e + self.future_time - 1, [0, 1, 3]])
+                target_samples.append(arm_angle[i + self.time_length + self.future_time - 1, [0, 1, 3]])
             else:
-                target_samples.append(arm_angle[s + self.future_time:e + +self.future_time, [0, 1, 3]])
+                target_samples.append(
+                    arm_angle[i + self.future_time: i + self.time_length + self.future_time, [0, 1, 3]]
+                )
 
         arm_angle_samples = np.asarray(arm_angle_samples)
         gyro_samples = np.asarray(gyro_samples)
