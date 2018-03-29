@@ -322,5 +322,9 @@ class ArmAngle2(object):
                 self.angle_7 = 90
         else:
             self.angle_7 = 0
+            
+        self.angle_2, self.angle_5, self.angle_6, self.angle_7 = map(
+                lambda x: round(x, 0), [self.angle_2, self.angle_5, self.angle_6, self.angle_7]
+        )
 
         return self.angle_2, self.angle_5, self.angle_6, self.angle_7

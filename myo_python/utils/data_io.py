@@ -7,7 +7,9 @@ import numpy as np
 
 
 class DataManager(object):
-    def __init__(self, file_path, separate_rate=0.2, time_length=15, future_time=1, one_target=True):
+    def __init__(self, file_path,
+                 separate_rate=0.2, time_length=15, future_time=1,
+                 one_target=True, degree2rad=False):
         """
         data pre-processing, sort out to the format we needed
         :param file_path:
@@ -20,6 +22,7 @@ class DataManager(object):
         self.time_length = time_length
         self.future_time = future_time
         self.one_target = one_target
+        self.degree2rad = degree2rad
 
         self.tr_kinematic = list()
         self.tr_emg = list()
@@ -54,6 +57,11 @@ class DataManager(object):
         tr = list(map(lambda x: np.concatenate(x, axis=0), [self.tr_kinematic, self.tr_emg, self.tr_target]))
         val = list(map(lambda x: np.concatenate(x, axis=0), [self.val_kinematic, self.val_emg, self.val_target]))\
             if self.separate_rate > 0 else None
+                
+        if self.degree2rad:
+            tr = list(map(np.radians, tr))
+            if val:
+                val = list(map(np.radians, val))
 
         return tr, val
 

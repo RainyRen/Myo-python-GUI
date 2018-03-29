@@ -6,7 +6,8 @@ from keras.layers import (Input, Concatenate,
                           TimeDistributed,
                           Dropout,
                           BatchNormalization,
-                          GRU)
+                          GRU,
+                          CuDNNLSTM)
 # from keras.optimizers import Adam
 from keras.callbacks import Callback
 import tensorflow as tf
@@ -76,14 +77,14 @@ def multi2one(model_config, inference=False):
         input_emg = Input(shape=(model_config['time_length'], 16))
 
         # # define structures
-        kinematic_rnn_cell = GRU(
+        kinematic_rnn_cell = CuDNNLSTM(
             rnn_neurons,
-            dropout=0.2,
+            # dropout=0.2,
             return_sequences=False,
             stateful=False)(input_kinematic)
-        emg_rnn_cell = GRU(
+        emg_rnn_cell = CuDNNLSTM(
             rnn_neurons,
-            dropout=0.2,
+            # dropout=0.2,
             return_sequences=False,
             stateful=False)(input_emg)
 

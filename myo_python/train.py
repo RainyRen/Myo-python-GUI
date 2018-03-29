@@ -74,7 +74,8 @@ if __name__ == "__main__":
         separate_rate=train_config['separate_rate'],
         time_length=train_config['time_length'],
         future_time=train_config['future_time'],
-        one_target=True
+        one_target=True,
+        degree2rad=train_config['degree2rad']
     )
     print("organising materials...")
     tr_data, val_data = data_mg.get_all_data()

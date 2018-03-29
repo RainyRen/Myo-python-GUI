@@ -228,7 +228,7 @@ class MyoListen(QThread):
             self.device_data['arm_angle'] = list(self.arm_angle.cal_arm_angle(
                 self.device_data['rpy'], gyr=self.device_data['gyroscope']))
             print('\r                 ', end='')
-            print('\r{:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['arm_angle']), end='')
+            print('\r{:.1f}, {:.1f}, {:.1f}, {:.1f}'.format(*self.device_data['arm_angle']), end='')
 
         else:
             self.device_data['arm_angle'] = []
@@ -245,7 +245,7 @@ class MyoListen(QThread):
                     [np.asarray(self._kinematic_window)[np.newaxis, :], np.asarray(self._emg_window)[np.newaxis, :]],
                     batch_size=1,
                 ).ravel().tolist()
-                print('  {:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['estimate_angle']), end='')
+                print('  {:.1f}, {:.1f}, {:.1f}'.format(*self.device_data['estimate_angle']), end='')
         else:
             self.device_data['estimate_angle'] = []
 
