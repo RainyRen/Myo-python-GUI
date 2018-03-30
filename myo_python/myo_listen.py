@@ -10,6 +10,7 @@ import json
 from collections import deque
 
 # # ===== third party library =====
+import socket
 import zmq
 from PyQt5.QtCore import QThread, QMutex, QMutexLocker, pyqtSignal
 import numpy as np
@@ -29,8 +30,9 @@ class MyoListen(QThread):
         with open("./config/ini_config.yml", "r") as config_file:
             config = yaml.load(config_file)
 
+        self.is_tcp = config['tcp_mode']
         self.is_req_mode = config['req_mode']
-        self.tcp_address = config['tcp_address']
+        self.socket_address = config['socket_address']
         self.emg_filter = config['emg_filter']
         self.moving_ave = config['moving_ave']
         self.filter_order = config['filter_order']
@@ -47,6 +49,8 @@ class MyoListen(QThread):
 
         # # ===== socket initial =====
         self.socket = None
+        if not self.is_tcp:
+            self.udp_address = None
 
         # # ===== try initial myo =====
         if not myo.myo_initialized():
@@ -134,19 +138,32 @@ class MyoListen(QThread):
             self.hub.stop(True)
             self.hub.shutdown()
 
-    def send(self, is_send):
+    def socket_connect(self, is_send):
         with QMutexLocker(self.mutex):
             if is_send:
-                # # ===== initial zmq protocol =====
-                context = zmq.Context()
-                if self.is_req_mode:
-                    self.socket = context.socket(zmq.REP)
+                """
+                we have to check is TCP or UDP
+                """
+                if self.is_tcp:
+                    # # ===== initial zmq protocol =====
+                    context = zmq.Context()
+                    if self.is_req_mode:
+                        self.socket = context.socket(zmq.REP)
+                    else:
+                        self.socket = context.socket(zmq.PUB)
+                    # # tcp address use tcp://127.0.0.1:5555
+                    self.socket.bind("tcp://" + self.socket_address)
+
+                    self.msg_signal.emit('tcp server start')
+                    print("TCP server start at {}".format(self.socket_address))
+
                 else:
-                    self.socket = context.socket(zmq.PUB)
-                # # tcp address use tcp://127.0.0.1:5555
-                self.socket.bind("tcp://" + self.tcp_address)
-                self.msg_signal.emit('tcp server start')
-                print("Server start at {}".format(self.tcp_address))
+                    udp_ip, udo_port = self.socket_address.split(':')
+                    self.udp_address = (udp_ip, int(udo_port))
+                    self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    self.msg_signal.emit('udp server start')
+                    print("UDP server start at {}".format(self.socket_address))
+
                 self.send_signal = True
 
             else:
@@ -155,6 +172,14 @@ class MyoListen(QThread):
                 print('stop tcp server')
                 self.socket.close()
                 self.socket = None
+
+    def _socket_send(self, send_msg):
+        if self.is_tcp:
+            self.socket.send_string(send_msg)
+
+        else:
+            send_msg = bytes(json.dumps(self.device_data['arm_angle']), 'utf-8')
+            self.socket.sendto(send_msg, self.udp_address)
 
     def record(self, file_name, is_record):
         with QMutexLocker(self.mutex):
@@ -182,7 +207,7 @@ class MyoListen(QThread):
 
             if cmd == b'require':
                 self._get_devices_data()
-                send_data = json.dump(self.device_data)
+                send_data = json.dumps(self.device_data)
                 self.socket.send(bytearray(str(send_data), 'utf-8'))
 
             elif cmd == b'quit':
@@ -199,7 +224,7 @@ class MyoListen(QThread):
 
             if self.send_signal:
                 send_data = json.dumps(self.device_data)
-                self.socket.send_string(send_data)
+                self._socket_send(send_data)
 
             if self.stop_signal:
                 print("stop myo")

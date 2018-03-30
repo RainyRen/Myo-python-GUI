@@ -70,7 +70,7 @@ class TableWidget(QWidget):
         self.quit_bnt.setIcon(QIcon(str(IMAGE_PATH / "quit.png")))
         self.quit_bnt.setStyleSheet("background-color: #EF5350")
 
-        # # ===== Create first tab =====
+        # # ================================ Create first tab =============================================
         self.myo_connect_bnt = QPushButton("connect")
         self.myo_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
         self.myo_connect_bnt.setCheckable(True)
@@ -99,9 +99,16 @@ class TableWidget(QWidget):
         self.estimator_bnt.setCheckable(True)
         self.estimator_bnt.setDisabled(True)
 
-        self.tcp_address = QLineEdit("127.0.0.1:5555")
+        self.socket_address = QLineEdit("127.0.0.1:5555")
         self.file_name = QLineEdit("default")
         self.file_name.setAlignment(Qt.AlignCenter)
+
+        self.socket_mode_group = QButtonGroup(self.tab_main)
+        self.socket_tcp_mode = QRadioButton('TCP')
+        self.socket_tcp_mode.setChecked(True)
+        self.socket_udp_mode = QRadioButton('UDP')
+        self.socket_mode_group.addButton(self.socket_tcp_mode)
+        self.socket_mode_group.addButton(self.socket_udp_mode)
 
         self.tcp_mode_group = QButtonGroup(self.tab_main)
         self.pub_radio_bnt = QRadioButton("Public Mode")
@@ -119,14 +126,16 @@ class TableWidget(QWidget):
 
         # # define different area layout
         grid_layout = QGridLayout()
-        grid_layout.addWidget(QLabel("TCP Address:"), 1, 0)
-        grid_layout.addWidget(self.tcp_address, 1, 1)
-        grid_layout.addWidget(self.pub_radio_bnt, 2, 0)
-        grid_layout.addWidget(self.req_radio_bnt, 2, 1)
+        grid_layout.addWidget(QLabel("Socket Address:"), 1, 0)
+        grid_layout.addWidget(self.socket_address, 1, 1)
+        grid_layout.addWidget(self.socket_tcp_mode, 2, 0)
+        grid_layout.addWidget(self.socket_udp_mode, 2, 1)
+        grid_layout.addWidget(self.pub_radio_bnt, 3, 0)
+        grid_layout.addWidget(self.req_radio_bnt, 3, 1)
         grid_layout.addWidget(QLabel("Send Frequency(Hz):"), 4, 0)
         grid_layout.addWidget(self.send_fs, 4, 1)
-        grid_layout.addWidget(QLabel("File Name:"), 8, 0)
-        grid_layout.addWidget(self.file_name, 8, 1)
+        grid_layout.addWidget(QLabel("File Name:"), 5, 0)
+        grid_layout.addWidget(self.file_name, 5, 1)
 
         myo_tcp_layout = QHBoxLayout()
         myo_tcp_layout.addWidget(self.myo_connect_bnt)
@@ -272,7 +281,7 @@ class TableWidget(QWidget):
         self.quit_bnt.clicked.connect(self.quit)
 
         self.myo_connect_bnt.clicked.connect(self.connect_myo)
-        self.tcp_send_bnt.clicked.connect(self.tcp_send)
+        self.tcp_send_bnt.clicked.connect(self.socket_send)
 
         self.arm_cali_bnt.clicked.connect(self.arm_calibration)
         self.arm_angle_bnt.clicked.connect(self.arm_angle)
@@ -305,13 +314,14 @@ class TableWidget(QWidget):
             # print(self.ma_length.value())
 
             # # ===== save config file =====
+            self.config_dict['tcp_mode'] = self.socket_tcp_mode.isChecked()     # type: bool
             self.config_dict['req_mode'] = self.req_radio_bnt.isChecked()       # type: bool
             self.config_dict['emg_filter'] = self.hpf_checkbox.isChecked()      # type: bool
             self.config_dict['moving_ave'] = self.ma_checkbox.isChecked()       # type: bool
             self.config_dict['filter_order'] = self.hpf_filter_oder.value()     # type: int
             self.config_dict['low_cutoff'] = self.hpf_cutoff_fs.value()         # type: int
             self.config_dict['window_size'] = self.ma_length.value()            # type: int
-            self.config_dict['tcp_address'] = self.tcp_address.text()           # type: str
+            self.config_dict['socket_address'] = self.socket_address.text()           # type: str
             self.config_dict['send_fs'] = self.send_fs.value()                  # type: int
             self.config_dict['elbow_compensate_k'] = float(self.elbow_compensate_k.text())      # type: float
             self.config_dict['imu_filter'] = self.arm_complementary_bnt.isChecked()             # type: bool
@@ -379,13 +389,13 @@ class TableWidget(QWidget):
         self.data_record_bnt.setDisabled(True)
         self.estimator_bnt.setDisabled(True)
 
-    def tcp_send(self):
+    def socket_send(self):
         if self.tcp_send_bnt.isChecked():
             print("tcp send")
-            self.myo_dongle.send(True)
+            self.myo_dongle.socket_connect(True)
 
         else:
-            self.myo_dongle.send(False)
+            self.myo_dongle.socket_connect(False)
 
     def arm_calibration(self):
         self.myo_dongle.arm_calibration()
