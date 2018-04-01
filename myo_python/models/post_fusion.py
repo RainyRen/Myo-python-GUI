@@ -5,7 +5,7 @@ from keras.layers import (Input, Concatenate,
                           Dense,
                           TimeDistributed,
                           Dropout,
-                          BatchNormalization,
+                          Bidirectional,
                           GRU,
                           CuDNNLSTM)
 # from keras.optimizers import Adam
@@ -13,6 +13,7 @@ from keras.callbacks import Callback
 import tensorflow as tf
 
 
+# # =============================================== keras model =====================================================
 def multi2multi(model_config, inference=False):
     """
     multiple input get multiple output, return are vector
@@ -73,7 +74,7 @@ def multi2one(model_config, inference=False):
         hidden_2_neurons = model_config['hidden_2_neurons']
 
         # # define two separate inputs
-        input_kinematic = Input(shape=(model_config['time_length'], 15))
+        input_kinematic = Input(shape=(model_config['time_length'], 16))
         input_emg = Input(shape=(model_config['time_length'], 16))
 
         # # define structures
@@ -94,15 +95,16 @@ def multi2one(model_config, inference=False):
         hidden_1 = Dropout(0.25)(hidden_1)
         hidden_2 = Dense(hidden_2_neurons, activation='relu')(hidden_1)
         hidden_2 = Dropout(0.25)(hidden_2)
-        output = Dense(3, activation=None)(hidden_2)
+        output = Dense(4, activation=None)(hidden_2)
 
         model = Model([input_kinematic, input_emg], output)
         model.summary()
-        model.compile(optimizer='rmsprop', loss='mean_squared_error', metrics=['mae'])
+        model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])
 
         return model
 
 
+# # ============================================ tensorflow model ===================================================
 class DumpHistory(Callback):
     """
     Recode every epoch history

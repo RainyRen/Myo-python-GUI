@@ -23,7 +23,7 @@ class EstimatorTF(object):
 
 
 def k_test(config):
-    from utils.data_io import DataManager
+    from utils.data_io import DataManager, degree2position
     from keras.models import load_model
 
     data_mg = DataManager(
@@ -46,15 +46,18 @@ def k_test(config):
     x = [i * (1 / config['time_length']) for i in range(ts_target.shape[0])]
     # # ----- plot single axis -----
     plt.figure(0)
-    plt.subplot(311)
+    plt.subplot(411)
     plt.plot(x, np.degrees(ts_target[:, 0]), 'k-')
     plt.plot(x, np.degrees(result[:, 0]), 'r--')
-    plt.subplot(312)
+    plt.subplot(412)
     plt.plot(x, np.degrees(ts_target[:, 1]), 'k-')
     plt.plot(x, np.degrees(result[:, 1]), 'r--')
-    plt.subplot(313)
+    plt.subplot(413)
     plt.plot(x, np.degrees(ts_target[:, 2]), 'k-')
     plt.plot(x, np.degrees(result[:, 2]), 'r--')
+    plt.subplot(414)
+    plt.plot(x, np.degrees(ts_target[:, 3]), 'k-')
+    plt.plot(x, np.degrees(result[:, 3]), 'r--')
 
     # # ----- plot 3d space -----
     # # convert degree to radius
@@ -65,15 +68,8 @@ def k_test(config):
         ts_target = ts_target[200: 300]
         result = result[200: 300]
 
-    xy_gt = FOREARM_LEN * np.cos(ts_target[:, 1] + ts_target[:, 2]) + UPPER_ARM_LEN * np.cos(ts_target[:, 1])
-    x_gt = xy_gt * np.cos(ts_target[:, 0])
-    y_gt = xy_gt * np.sin(ts_target[:, 0])
-    z_gt = FOREARM_LEN * np.sin(ts_target[:, 1] + ts_target[:, 2]) + UPPER_ARM_LEN * np.sin(ts_target[:, 1])
-
-    xy_es = FOREARM_LEN * np.cos(result[:, 1] + result[:, 2]) + UPPER_ARM_LEN * np.cos(result[:, 1])
-    x_es = xy_es * np.cos(result[:, 0])
-    y_es = xy_es * np.sin(result[:, 0])
-    z_es = FOREARM_LEN * np.sin(result[:, 1] + result[:, 2]) + UPPER_ARM_LEN * np.sin(result[:, 1])
+    x_gt, y_gt, z_gt = degree2position(ts_target)
+    x_es, y_es, z_es = degree2position(result)
 
     fig3d = plt.figure(1)
     ax = Axes3D(fig3d)

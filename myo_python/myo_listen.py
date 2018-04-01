@@ -270,7 +270,7 @@ class MyoListen(QThread):
                     [np.asarray(self._kinematic_window)[np.newaxis, :], np.asarray(self._emg_window)[np.newaxis, :]],
                     batch_size=1,
                 ).ravel().tolist()
-                print('  {:.1f}, {:.1f}, {:.1f}'.format(*self.device_data['estimate_angle']), end='')
+                print('  {:.1f}, {:.1f}, {:.1f}, {:.1f}'.format(*self.device_data['estimate_angle']), end='')
         else:
             self.device_data['estimate_angle'] = []
 

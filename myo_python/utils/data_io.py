@@ -92,15 +92,16 @@ class DataManager(object):
         emg = data_df.iloc[:, 22:38].values
 
         for i in range(n_sample):
-            arm_angle_samples.append(arm_angle[i:i + self.time_length, [0, 1, 3]])
+            arm_angle_samples.append(arm_angle[i:i + self.time_length])
             gyro_samples.append(gyro[i:i + self.time_length])
             acc_samples.append(acc[i:i + self.time_length])
             emg_samples.append(emg[i:i + self.time_length])
             if self.one_target:
-                target_samples.append(arm_angle[i + self.time_length + self.future_time - 1, [0, 1, 3]])
+                target_samples.append(arm_angle[i + self.time_length + self.future_time - 1])
             else:
+                # # get multi output target
                 target_samples.append(
-                    arm_angle[i + self.future_time: i + self.time_length + self.future_time, [0, 1, 3]]
+                    arm_angle[i + self.future_time: i + self.time_length + self.future_time]
                 )
 
         arm_angle_samples = np.asarray(arm_angle_samples)
@@ -112,6 +113,31 @@ class DataManager(object):
         target_samples = np.asarray(target_samples)
 
         return kinematic_samples, emg_samples, target_samples
+
+
+def degree2position(arm_angle, forearm_len=33, upper_arm_len=32):
+    """
+    convert arm angle to hand position in 3D space
+    a1: forearm, a2: upper arm
+    x = a1 * cos(5+7) * cos(2) - a1 * sin(7) * sin(6) * cos(2) + a2 * cos(5) * cos(2)
+    y =  a1 * ocs(5+7) * sin(2) - a1 * sin(7) * sin(6) * sin(2) + a2 * cos(5) * sin(2)
+    z = a1 * sin(5+7) * cos(6) + a2 * sin(5)
+    :param np.array arm_angle: n x 4 dim, for 2, 5, ,6 ,7 angle in exoskeleton present in rad! rad! rad!
+    :param float forearm_len: forearm length for the subject
+    :param float upper_arm_len: upper arm length for the subject
+    :return: np.array: m x 3 dim, for x, y, z position in euler space
+    """
+    cos57, sin57 = np.cos(arm_angle[:, 1] + arm_angle[:, 3]), np.sin(arm_angle[:, 1] + arm_angle[:, 3])
+    sin7sin6 = np.sin(arm_angle[:, 3]) * np.sin(arm_angle[:, 2])
+    cos6 = np.cos(arm_angle[:, 2])
+    cos2, sin2 = np.cos(arm_angle[:, 0]), np.sin(arm_angle[:, 0])
+    cos5, sin5 = np.cos(arm_angle[:, 1]), np.sin(arm_angle[:, 1])
+
+    x = forearm_len * cos2 * (cos57 - sin7sin6) + upper_arm_len * cos5 * cos2
+    y = forearm_len * sin2 * (cos57 - sin7sin6) + upper_arm_len * cos5 * sin2
+    z = forearm_len * sin57 * cos6 + upper_arm_len * sin5
+
+    return x, y, z
 
 
 if __name__ == "__main__":
