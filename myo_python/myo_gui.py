@@ -8,11 +8,11 @@ from pathlib import Path
 
 from PyQt5.QtWidgets import (
     QMainWindow, QApplication, QWidget, QTabWidget,
-    QHBoxLayout, QVBoxLayout, QFormLayout, QGridLayout,
-    QPushButton, QTextEdit, QLabel, QLineEdit, QComboBox, QRadioButton, QCheckBox, QSpinBox, QButtonGroup
+    QHBoxLayout, QVBoxLayout, QGridLayout,
+    QPushButton, QTextEdit, QLabel, QLineEdit, QRadioButton, QCheckBox, QSpinBox, QButtonGroup
 )
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import pyqtSlot, Qt
+from PyQt5.QtCore import Qt
 
 from myo_listen import MyoListen
 from myo_feed import MyoFeed
@@ -20,6 +20,7 @@ from myo_feed import MyoFeed
 ROOT_PATH = Path(__file__).parent
 DATA_PATH = ROOT_PATH / "data"
 IMAGE_PATH = ROOT_PATH / "images"
+EXP_PATH = ROOT_PATH / "exp"
 
 
 class App(QMainWindow):
@@ -71,30 +72,30 @@ class TableWidget(QWidget):
         self.quit_bnt.setStyleSheet("background-color: #EF5350")
 
         # # ================================ Create first tab =============================================
-        self.myo_connect_bnt = QPushButton("connect")
+        self.myo_connect_bnt = QPushButton("Connect")
         self.myo_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
         self.myo_connect_bnt.setCheckable(True)
-        self.tcp_send_bnt = QPushButton("send")
+        self.tcp_send_bnt = QPushButton("Send")
         self.tcp_send_bnt.setIcon(QIcon(str(IMAGE_PATH / "send.png")))
         self.tcp_send_bnt.setCheckable(True)
         self.tcp_send_bnt.setDisabled(True)
-        self.data_record_bnt = QPushButton("record")
+        self.data_record_bnt = QPushButton("Record")
         self.data_record_bnt.setIcon(QIcon(str(IMAGE_PATH / "record.png")))
         self.data_record_bnt.setCheckable(True)
         self.data_record_bnt.setDisabled(True)
 
-        self.arm_cali_bnt = QPushButton('arm calibration')
+        self.arm_cali_bnt = QPushButton('Calibration')
         self.arm_cali_bnt.setIcon(QIcon(str(IMAGE_PATH / "calibration")))
         self.arm_cali_bnt.setDisabled(True)
-        self.arm_angle_bnt = QPushButton('arm angle')
+        self.arm_angle_bnt = QPushButton('Arm Angle')
         self.arm_angle_bnt.setIcon(QIcon(str(IMAGE_PATH / "angle.png")))
         self.arm_angle_bnt.setCheckable(True)
         self.arm_angle_bnt.setDisabled(True)
 
-        self.file_delete_bnt = QPushButton("delete")
+        self.file_delete_bnt = QPushButton("Delete")
         self.file_delete_bnt.setIcon(QIcon(str(IMAGE_PATH / "delete.png")))
 
-        self.estimator_bnt = QPushButton("estimator")
+        self.estimator_bnt = QPushButton("Estimator")
         self.estimator_bnt.setIcon(QIcon(str(IMAGE_PATH / "estimator.png")))
         self.estimator_bnt.setCheckable(True)
         self.estimator_bnt.setDisabled(True)
@@ -105,8 +106,8 @@ class TableWidget(QWidget):
 
         self.socket_mode_group = QButtonGroup(self.tab_main)
         self.socket_tcp_mode = QRadioButton('TCP')
-        self.socket_tcp_mode.setChecked(True)
         self.socket_udp_mode = QRadioButton('UDP')
+        self.socket_udp_mode.setChecked(True)
         self.socket_mode_group.addButton(self.socket_tcp_mode)
         self.socket_mode_group.addButton(self.socket_udp_mode)
 
@@ -119,7 +120,7 @@ class TableWidget(QWidget):
 
         self.send_fs = QSpinBox()
         self.send_fs.setAlignment(Qt.AlignCenter)
-        self.send_fs.setValue(10)
+        self.send_fs.setValue(20)
         self.send_fs.setRange(0, 200)
 
         self.myo_msg = QTextEdit()
@@ -208,23 +209,15 @@ class TableWidget(QWidget):
         self.send_status_checkbox = QCheckBox("Status")
         self.send_status_checkbox.setChecked(False)
 
+        # # estimator model path
+        self.estimator_model_path = QLineEdit('multi2one')
+        self.estimator_model_path.setAlignment(Qt.AlignCenter)
+
         # # setting button
-        self.setting_connect_bnt = QPushButton("connect")
-        self.setting_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
-        self.setting_abort_bnt = QPushButton("abort")
-        self.setting_abort_bnt.setIcon(QIcon(str(IMAGE_PATH / "abort.png")))
-        self.setting_abort_bnt.setDisabled(True)
-        self.apply_setting_bnt = QPushButton("Apply")
-
-        # # setting display content
-        self.display_screen = QTextEdit(self)
-        self.display_screen.setReadOnly(True)
-        self.display_screen.setMaximumHeight(50)
-
-        # # setting sleep mode
-        self.sleep_mode = QComboBox()
-        self.sleep_mode.addItem("Normal")
-        self.sleep_mode.addItem("Never")
+        self.reset_bnt = QPushButton('Reset')
+        self.reset_bnt.setIcon(QIcon(str(IMAGE_PATH / 'reset.png')))
+        self.apply_bnt = QPushButton("Apply")
+        self.apply_bnt.setIcon(QIcon(str(IMAGE_PATH / 'apply.png')))
 
         # # ----- define different area layout -----
         self.tab_setting.layout = QVBoxLayout(self)
@@ -249,27 +242,21 @@ class TableWidget(QWidget):
         high_level_layout.addWidget(QLabel("Complementary a:"), 7, 0)
         high_level_layout.addWidget(self.complementary_a, 7, 1)
 
-        high_level_layout.addWidget(QLabel("Send / Save  Select"), 8, 0, 1, 2)
+        high_level_layout.addWidget(QLabel("Send / Save  Select"), 8, 0)
+        high_level_layout.addWidget(QLabel(""), 8, 1)
         high_level_layout.addWidget(self.send_arm_angle_checkbox, 9, 0)
         high_level_layout.addWidget(self.send_imu_checkbox, 9, 1)
         high_level_layout.addWidget(self.send_emg_checkbox, 10, 0)
         high_level_layout.addWidget(self.send_status_checkbox, 10, 1)
 
-        connect_layout = QHBoxLayout(self)
-        connect_layout.addWidget(self.setting_connect_bnt)
-        connect_layout.addStretch()
-        connect_layout.addWidget(self.setting_abort_bnt)
+        high_level_layout.addWidget(QLabel("Model Folder"), 11, 0)
+        high_level_layout.addWidget(self.estimator_model_path, 11, 1)
 
-        setting_layout = QFormLayout()
-        setting_layout.addRow(QLabel("Name:"), QLineEdit())
-        setting_layout.addRow(QLabel("Sleep Mode"), self.sleep_mode)
-        setting_layout.addWidget(self.apply_setting_bnt)
+        high_level_layout.addWidget(self.reset_bnt, 12, 0)
+        high_level_layout.addWidget(self.apply_bnt, 12, 1)
 
         # # organize layout
         self.tab_setting.layout.addLayout(high_level_layout)
-        self.tab_setting.layout.addLayout(connect_layout)
-        self.tab_setting.layout.addWidget(self.display_screen)
-        self.tab_setting.layout.addLayout(setting_layout)
         self.tab_setting.setLayout(self.tab_setting.layout)
 
         # # ===== Add tabs to widget =====
@@ -291,9 +278,8 @@ class TableWidget(QWidget):
 
         self.estimator_bnt.clicked.connect(self.estimator)
 
-        self.setting_connect_bnt.clicked.connect(self.setting_connect)
-        self.setting_abort_bnt.clicked.connect(self.setting_abort)
-        self.apply_setting_bnt.clicked.connect(self.apply_setting)
+        self.reset_bnt.clicked.connect(self.reset_default)
+        self.apply_bnt.clicked.connect(self.apply_setting)
 
     def update_msg(self, receive_msg):
         # print("got msg!!!")
@@ -422,7 +408,7 @@ class TableWidget(QWidget):
         if self.estimator_bnt.isChecked():
             print('estimator turn on')
             self.update_msg('estimator turn on')
-            self.myo_dongle.get_estimate_angle(True, model_path=Path('./exp/multi2one'))
+            self.myo_dongle.get_estimate_angle(True, model_path=EXP_PATH / self.estimator_model_path.text())
 
         else:
             print('estimator turn off')
@@ -486,23 +472,11 @@ class TableWidget(QWidget):
     !!! below are only display result, not really work
     Haven't finished!!!
     """
-    @pyqtSlot()
-    def setting_connect(self):
-        print("setting connect")
-        self.setting_connect_bnt.setDisabled(True)
-        self.setting_abort_bnt.setDisabled(False)
+    def reset_default(self):
+        print("reset to default")
 
-    @pyqtSlot()
-    def setting_abort(self):
-        print("setting disconnect")
-        self.setting_connect_bnt.setDisabled(False)
-        self.setting_abort_bnt.setDisabled(True)
-
-    @pyqtSlot()
     def apply_setting(self):
         print("apply setting")
-        _sleep_mode = self.sleep_mode.currentText()
-        self.display_screen.append("set {} sleep".format(_sleep_mode))
 
     def quit(self):
         # # check myo hub to stop if run
