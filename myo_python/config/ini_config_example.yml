@@ -1,5 +1,0 @@
-do_filter: False
-moving_ave: False
-filter_order: 4
-cutoff: 2
-window_size: 5

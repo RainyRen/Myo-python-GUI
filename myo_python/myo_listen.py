@@ -25,27 +25,24 @@ from myo_listener import Listener, ArmAngle2
 class MyoListen(QThread):
     msg_signal = pyqtSignal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, ini_config, parent=None):
         super(self.__class__, self).__init__(parent)
         # # ===== load parameter from config file =====
-        with open("./config/ini_config.yml", "r") as config_file:
-            config = yaml.load(config_file)
-
-        self.is_tcp = config['tcp_mode']
-        self.is_req_mode = config['req_mode']
-        self.socket_address = config['socket_address']
-        self.emg_filter = config['emg_filter']
-        self.moving_ave = config['moving_ave']
-        self.filter_order = config['filter_order']
-        self.low_cutoff = config['low_cutoff']
-        self.window_size = config['window_size']
-        self.send_fs = config['send_fs']      # type: int
-        self.imu_filter = config['imu_filter']
-        self.complementary_a = config['complementary_a']
-        self.elbow_compensate_k = config['elbow_compensate_k']
+        self.is_tcp = ini_config['tcp_mode']
+        self.is_req_mode = ini_config['req_mode']
+        self.socket_address = ini_config['socket_address']
+        self.emg_filter = ini_config['emg_filter']
+        self.moving_ave = ini_config['moving_ave']
+        self.filter_order = ini_config['filter_order']
+        self.low_cutoff = ini_config['low_cutoff']
+        self.window_size = ini_config['window_size']
+        self.send_fs = ini_config['send_fs']      # type: int
+        self.imu_filter = ini_config['imu_filter']
+        self.complementary_a = ini_config['complementary_a']
+        self.elbow_compensate_k = ini_config['elbow_compensate_k']
+        self.send_save = ini_config['send_save']
         self.emg_fs = 200       # device EMG sampling frequency
         self.connect_state = False
-        self.send_save = config['send_save']
         print('save content: ', self.send_save)
 
         # # ===== socket initial =====

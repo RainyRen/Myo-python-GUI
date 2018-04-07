@@ -50,7 +50,9 @@ class TableWidget(QWidget):
     def __init__(self, parent=None):
         super(self.__class__, self).__init__(parent)
         self.myo_dongle = None
-        self.config_dict = dict()
+
+        with open(str(ROOT_PATH / "config" / "ini_config.yml"), "r") as config_file:
+            self.config_dict = yaml.load(config_file)
 
         # # ***** below are gui init *****
         # # ===== define whole layout =====
@@ -100,20 +102,18 @@ class TableWidget(QWidget):
         self.estimator_bnt.setCheckable(True)
         self.estimator_bnt.setDisabled(True)
 
-        self.socket_address = QLineEdit("127.0.0.1:5555")
+        self.socket_address = QLineEdit("localhost:5555")
         self.file_name = QLineEdit("default")
         self.file_name.setAlignment(Qt.AlignCenter)
 
         self.socket_mode_group = QButtonGroup(self.tab_main)
         self.socket_tcp_mode = QRadioButton('TCP')
         self.socket_udp_mode = QRadioButton('UDP')
-        self.socket_udp_mode.setChecked(True)
         self.socket_mode_group.addButton(self.socket_tcp_mode)
         self.socket_mode_group.addButton(self.socket_udp_mode)
 
         self.tcp_mode_group = QButtonGroup(self.tab_main)
         self.pub_radio_bnt = QRadioButton("Public Mode")
-        self.pub_radio_bnt.setChecked(True)
         self.req_radio_bnt = QRadioButton("Request Mode")
         self.tcp_mode_group.addButton(self.pub_radio_bnt)
         self.tcp_mode_group.addButton(self.req_radio_bnt)
@@ -169,32 +169,26 @@ class TableWidget(QWidget):
         self.myo_mode_group.addButton(self.myo_feed_radio_bnt)
 
         self.hpf_checkbox = QCheckBox("High Pass Filter")
-        self.hpf_checkbox.setChecked(True)
         self.ma_checkbox = QCheckBox("Moving Average")
-        self.ma_checkbox.setChecked(True)
 
         self.hpf_filter_oder = QSpinBox()
         self.hpf_filter_oder.setAlignment(Qt.AlignCenter)
-        self.hpf_filter_oder.setValue(4)
         self.hpf_filter_oder.setRange(1, 5)
         self.hpf_cutoff_fs = QSpinBox()
         self.hpf_cutoff_fs.setAlignment(Qt.AlignCenter)
-        self.hpf_cutoff_fs.setValue(2)
         self.hpf_cutoff_fs.setRange(0, 1000)
         self.ma_length = QSpinBox()
         self.ma_length.setAlignment(Qt.AlignCenter)
-        self.ma_length.setValue(50)
         self.ma_length.setRange(1, 1000)
 
         self.elbow_compensate_k = QLineEdit("0.182")
         self.elbow_compensate_k.setAlignment(Qt.AlignCenter)
         self.arm_filter_group = QButtonGroup(self.tab_setting)
-        self.arm_complementary_bnt = QRadioButton("Complementary")
-        self.arm_complementary_bnt.setChecked(True)
-        self.arm_kalman_bnt = QRadioButton("Kalman")
-        self.arm_kalman_bnt.setCheckable(True)
-        self.arm_filter_group.addButton(self.arm_complementary_bnt)
-        self.arm_filter_group.addButton(self.arm_kalman_bnt)
+        self.arm_complementary_rbnt = QRadioButton("Complementary")
+        self.arm_kalman_rbnt = QRadioButton("Kalman")
+        self.arm_kalman_rbnt.setChecked(False)
+        self.arm_filter_group.addButton(self.arm_complementary_rbnt)
+        self.arm_filter_group.addButton(self.arm_kalman_rbnt)
         self.arm_filter_group.setExclusive(False)
         self.complementary_a = QLineEdit("0.98")
         self.complementary_a.setAlignment(Qt.AlignCenter)
@@ -210,7 +204,7 @@ class TableWidget(QWidget):
         self.send_status_checkbox.setChecked(False)
 
         # # estimator model path
-        self.estimator_model_path = QLineEdit('multi2one_k')
+        self.estimator_model_path = QLineEdit('')
         self.estimator_model_path.setAlignment(Qt.AlignCenter)
 
         # # setting button
@@ -237,8 +231,8 @@ class TableWidget(QWidget):
 
         high_level_layout.addWidget(QLabel("Elbow Compensate:"), 5, 0)
         high_level_layout.addWidget(self.elbow_compensate_k, 5, 1)
-        high_level_layout.addWidget(self.arm_complementary_bnt, 6, 0)
-        high_level_layout.addWidget(self.arm_kalman_bnt, 6, 1)
+        high_level_layout.addWidget(self.arm_complementary_rbnt, 6, 0)
+        high_level_layout.addWidget(self.arm_kalman_rbnt, 6, 1)
         high_level_layout.addWidget(QLabel("Complementary a:"), 7, 0)
         high_level_layout.addWidget(self.complementary_a, 7, 1)
 
@@ -264,6 +258,9 @@ class TableWidget(QWidget):
         self.layout.addWidget(self.quit_bnt)
         self.setLayout(self.layout)
 
+        # # ===== initial all content in display =====
+        self._init_display_content()
+
         # # Add button functions
         self.quit_bnt.clicked.connect(self.quit)
 
@@ -281,6 +278,59 @@ class TableWidget(QWidget):
         self.reset_bnt.clicked.connect(self.reset_default)
         self.apply_bnt.clicked.connect(self.apply_setting)
 
+    def _init_display_content(self):
+        self.socket_tcp_mode.setChecked(self.config_dict['tcp_mode'])
+        self.socket_udp_mode.setChecked(not self.config_dict['tcp_mode'])
+        self.req_radio_bnt.setChecked(self.config_dict['req_mode'])
+        self.pub_radio_bnt.setChecked(not self.config_dict['req_mode'])
+        self.hpf_checkbox.setChecked(self.config_dict['emg_filter'])
+        self.ma_checkbox.setChecked(self.config_dict['moving_ave'])
+        self.hpf_filter_oder.setValue(self.config_dict['filter_order'])
+        self.hpf_cutoff_fs.setValue(self.config_dict['low_cutoff'])
+        self.ma_length.setValue(self.config_dict['window_size'])
+        self.socket_address.setText(self.config_dict['socket_address'])
+        self.send_fs.setValue(self.config_dict['send_fs'])
+        self.elbow_compensate_k.setText(str(self.config_dict['elbow_compensate_k']))
+        self.arm_complementary_rbnt.setChecked(self.config_dict['imu_filter'])
+        self.complementary_a.setText(str(self.config_dict['complementary_a']))
+
+        self.send_arm_angle_checkbox.setChecked('arm_angle' in self.config_dict['send_save'])
+        self.send_imu_checkbox.setChecked('rpy' in self.config_dict['send_save'])
+        self.send_emg_checkbox.setChecked('emg' in self.config_dict['send_save'])
+        self.send_status_checkbox.setChecked('myo_status' in self.config_dict['send_save'])
+
+        self.estimator_model_path.setText(self.config_dict['model_path'])
+
+    def _reload_display_content(self):
+        # # ===== save config file =====
+        self.config_dict['tcp_mode'] = self.socket_tcp_mode.isChecked()  # type: bool
+        self.config_dict['req_mode'] = self.req_radio_bnt.isChecked()  # type: bool
+        self.config_dict['emg_filter'] = self.hpf_checkbox.isChecked()  # type: bool
+        self.config_dict['moving_ave'] = self.ma_checkbox.isChecked()  # type: bool
+        self.config_dict['filter_order'] = self.hpf_filter_oder.value()  # type: int
+        self.config_dict['low_cutoff'] = self.hpf_cutoff_fs.value()  # type: int
+        self.config_dict['window_size'] = self.ma_length.value()  # type: int
+        self.config_dict['socket_address'] = self.socket_address.text()  # type: str
+        self.config_dict['send_fs'] = self.send_fs.value()  # type: int
+        self.config_dict['elbow_compensate_k'] = float(self.elbow_compensate_k.text())  # type: float
+        self.config_dict['imu_filter'] = self.arm_complementary_rbnt.isChecked()  # type: bool
+        self.config_dict['complementary_a'] = float(self.complementary_a.text())  # type: float
+        self.config_dict['send_save'] = []
+
+        if self.send_arm_angle_checkbox.isChecked():
+            self.config_dict['send_save'].append('arm_angle')
+
+        if self.send_imu_checkbox.isChecked():
+            self.config_dict['send_save'].extend(['rpy', 'gyroscope', 'acceleration'])
+
+        if self.send_emg_checkbox.isChecked():
+            self.config_dict['send_save'].append('emg')
+
+        if self.send_status_checkbox.isChecked():
+            self.config_dict['send_save'].append('myo_status')
+
+        self.config_dict['model_path'] = self.estimator_model_path.text()
+
     def update_msg(self, receive_msg):
         # print("got msg!!!")
         self.myo_msg.append(receive_msg)
@@ -294,40 +344,9 @@ class TableWidget(QWidget):
             self.myo_msg.clear()
             print("=================")
             print("connect to myo hub")
-            # use_hpf = self.hpf_checkbox.isChecked()
-            # print(use_hpf)
-            # print(self.hpf_cutoff_fs.value())
-            # print(self.ma_length.value())
 
-            # # ===== save config file =====
-            self.config_dict['tcp_mode'] = self.socket_tcp_mode.isChecked()     # type: bool
-            self.config_dict['req_mode'] = self.req_radio_bnt.isChecked()       # type: bool
-            self.config_dict['emg_filter'] = self.hpf_checkbox.isChecked()      # type: bool
-            self.config_dict['moving_ave'] = self.ma_checkbox.isChecked()       # type: bool
-            self.config_dict['filter_order'] = self.hpf_filter_oder.value()     # type: int
-            self.config_dict['low_cutoff'] = self.hpf_cutoff_fs.value()         # type: int
-            self.config_dict['window_size'] = self.ma_length.value()            # type: int
-            self.config_dict['socket_address'] = self.socket_address.text()           # type: str
-            self.config_dict['send_fs'] = self.send_fs.value()                  # type: int
-            self.config_dict['elbow_compensate_k'] = float(self.elbow_compensate_k.text())      # type: float
-            self.config_dict['imu_filter'] = self.arm_complementary_bnt.isChecked()             # type: bool
-            self.config_dict['complementary_a'] = float(self.complementary_a.text())            # type: float
-            self.config_dict['send_save'] = []
-
-            if self.send_arm_angle_checkbox.isChecked():
-                self.config_dict['send_save'].append('arm_angle')
-
-            if self.send_imu_checkbox.isChecked():
-                self.config_dict['send_save'].extend(['rpy', 'gyroscope', 'acceleration'])
-
-            if self.send_emg_checkbox.isChecked():
-                self.config_dict['send_save'].append('emg')
-
-            if self.send_status_checkbox.isChecked():
-                self.config_dict['send_save'].append('myo_status')
-
-            with open(str(ROOT_PATH / "config" / "ini_config.yml"), "w") as config_file:
-                yaml.dump(self.config_dict, config_file, default_flow_style=False)
+            # # ===== reload setting =====
+            self._reload_display_content()
 
             # # ===== button state set =====
             self.myo_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "abort.png")))
@@ -338,7 +357,7 @@ class TableWidget(QWidget):
 
             # # ===== run myo feed =====
             if self.myo_listen_radio_bnt.isChecked():
-                self.myo_dongle = MyoListen()
+                self.myo_dongle = MyoListen(self.config_dict)
 
             elif self.myo_feed_radio_bnt.isChecked():
                 self.myo_dongle = MyoFeed()
@@ -474,9 +493,20 @@ class TableWidget(QWidget):
     """
     def reset_default(self):
         print("reset to default")
+        with open(str(ROOT_PATH / "config" / "ini_default.yml"), 'r') as default_file:
+            self.config_dict = yaml.load(default_file)
+
+        self._init_display_content()
+        self._save_setting()
 
     def apply_setting(self):
         print("apply setting")
+        self._reload_display_content()
+        self._save_setting()
+
+    def _save_setting(self):
+        with open(str(ROOT_PATH / "config" / "ini_config.yml"), "w") as config_file:
+            yaml.dump(self.config_dict, config_file, default_flow_style=False)
 
     def quit(self):
         # # check myo hub to stop if run
