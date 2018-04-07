@@ -5,7 +5,7 @@ from keras.layers import (Input, Concatenate,
                           Dense,
                           TimeDistributed,
                           Dropout,
-                          Bidirectional,
+                          LSTM,
                           GRU,
                           CuDNNLSTM)
 # from keras.optimizers import Adam
@@ -66,42 +66,50 @@ def multi2one(model_config, inference=False):
     :param bool inference:
     :return:
     """
+    rnn_neurons = model_config['rnn_neurons']
+    hidden_1_neurons = model_config['hidden_1_neurons']
+    hidden_2_neurons = model_config['hidden_2_neurons']
+
+    # # define two separate inputs
+    input_kinematic = Input(shape=(model_config['time_length'], 16))
+    input_emg = Input(shape=(model_config['time_length'], 16))
+
+    # # define structures
     if inference:
-        print("load exits model")
-    else:
-        rnn_neurons = model_config['rnn_neurons']
-        hidden_1_neurons = model_config['hidden_1_neurons']
-        hidden_2_neurons = model_config['hidden_2_neurons']
-
-        # # define two separate inputs
-        input_kinematic = Input(shape=(model_config['time_length'], 16))
-        input_emg = Input(shape=(model_config['time_length'], 16))
-
-        # # define structures
-        kinematic_rnn_cell = CuDNNLSTM(
+        kinematic_rnn_cell = LSTM(
             rnn_neurons,
-            # dropout=0.2,
             return_sequences=False,
             stateful=False)(input_kinematic)
-        emg_rnn_cell = CuDNNLSTM(
+        emg_rnn_cell = LSTM(
             rnn_neurons,
-            # dropout=0.2,
             return_sequences=False,
             stateful=False)(input_emg)
 
-        merge_data = Concatenate()([kinematic_rnn_cell, emg_rnn_cell])
+    else:
+        kinematic_rnn_cell = LSTM(
+            rnn_neurons,
+            dropout=0.2,
+            return_sequences=False,
+            stateful=False)(input_kinematic)
+        emg_rnn_cell = LSTM(
+            rnn_neurons,
+            dropout=0.2,
+            return_sequences=False,
+            stateful=False)(input_emg)
 
-        hidden_1 = Dense(hidden_1_neurons, activation='relu')(merge_data)
-        hidden_1 = Dropout(0.25)(hidden_1)
-        hidden_2 = Dense(hidden_2_neurons, activation='relu')(hidden_1)
-        hidden_2 = Dropout(0.25)(hidden_2)
-        output = Dense(4, activation=None)(hidden_2)
+    merge_data = Concatenate()([kinematic_rnn_cell, emg_rnn_cell])
 
-        model = Model([input_kinematic, input_emg], output)
-        model.summary()
-        model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])
+    hidden_1 = Dense(hidden_1_neurons, activation='relu')(merge_data)
+    hidden_1 = Dropout(0.3)(hidden_1)
+    hidden_2 = Dense(hidden_2_neurons, activation='relu')(hidden_1)
+    hidden_2 = Dropout(0.3)(hidden_2)
+    output = Dense(4, activation=None)(hidden_2)
 
-        return model
+    model = Model([input_kinematic, input_emg], output)
+    model.summary()
+    model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])
+
+    return model
 
 
 # # ============================================ tensorflow model ===================================================

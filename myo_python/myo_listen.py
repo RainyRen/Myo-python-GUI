@@ -7,6 +7,7 @@ import pdb
 import time
 import yaml
 import json
+import math
 from collections import deque
 
 # # ===== third party library =====
@@ -260,17 +261,17 @@ class MyoListen(QThread):
 
         if self.estimate_signal:
             # # it must be two myo, so directly select two data
-            arm_angle = self.device_data['arm_angle']
+            arm_angle = list(map(math.radians, self.device_data['arm_angle']))
             gyr = self.device_data['gyroscope'][0] + self.device_data['gyroscope'][1]
             acc = self.device_data['acceleration'][0] + self.device_data['acceleration'][1]
             self._kinematic_window.append(arm_angle + gyr + acc)
             self._emg_window.append(self.device_data['emg'][0] + self.device_data['emg'][1])
             if len(self._kinematic_window) == self._model_window_size:
-                self.device_data['estimate_angle'] = self.estimator.predict(
+                self.device_data['estimate_angle'] = np.degrees(self.estimator.predict(
                     [np.asarray(self._kinematic_window)[np.newaxis, :], np.asarray(self._emg_window)[np.newaxis, :]],
                     batch_size=1,
-                ).ravel().tolist()
-                print('  {:.1f}, {:.1f}, {:.1f}, {:.1f}'.format(*self.device_data['estimate_angle']), end='')
+                ).ravel()).tolist()
+                print(' | {:.1f}, {:.1f}, {:.1f}, {:.1f}'.format(*self.device_data['estimate_angle']), end='')
         else:
             self.device_data['estimate_angle'] = []
 
@@ -295,7 +296,7 @@ class MyoListen(QThread):
             if self.devices_num != 2:
                 print('acquire more myo on arm!')
 
-            elif is_get:
+            elif is_get and 'rpy' in self.device_data:
                 # self.arm_angle = ArmAngle(self.device_data['orientation'], dt=0.02)
                 self.arm_angle = ArmAngle2(
                     self.device_data['rpy'],

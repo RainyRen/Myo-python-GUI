@@ -210,7 +210,7 @@ class TableWidget(QWidget):
         self.send_status_checkbox.setChecked(False)
 
         # # estimator model path
-        self.estimator_model_path = QLineEdit('multi2one')
+        self.estimator_model_path = QLineEdit('multi2one_k')
         self.estimator_model_path.setAlignment(Qt.AlignCenter)
 
         # # setting button
