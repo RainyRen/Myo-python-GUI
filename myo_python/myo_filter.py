@@ -248,3 +248,24 @@ class Kalman(object):
         self._P[1][1] -= K[1] * p01_temp
 
         return self._angle
+
+
+class STFT(object):
+    def __init__(self, window_size, window_name='hamming', scaling='spectrum'):
+        self.window = signal.get_window(window_name, window_size)
+
+        if scaling == 'spectrum':
+            self.scale = np.sqrt(1.0 / (self.window.sum() ** 2))
+
+        else:
+            self.scale = 1
+
+    def __call__(self, x):
+        result = np.fft.rfft(np.asarray(x) * self.window, axis=-1)
+        result *= self.scale
+
+        return result
+
+
+if __name__== "__main__":
+    pass

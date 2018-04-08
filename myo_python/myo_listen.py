@@ -241,6 +241,7 @@ class MyoListen(QThread):
         self.device_data['orientation'] = self.listener.get_orientation
         self.device_data['acceleration'] = self.listener.get_acceleration
         self.device_data['gyroscope'] = self.listener.get_gyroscope
+        self.device_data['emg_features'] = self.listener.get_emg_features
         # self.device_data['myo_status'] = self.listener.get_device_state
         # print('\r                 ', end='')
         # print('\r{:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['rpy'][0]), end='')
@@ -279,14 +280,17 @@ class MyoListen(QThread):
                 for device_id in range(self.devices_num)
                 for element in self.device_data[item][device_id]
             ]
+
             if 'arm_angle' in self.send_save:
                 save_data = list(self.device_data['arm_angle']) + save_data
 
-            # with open(self.record_file_name, 'a', newline='') as record_file:
-                # writer = csv.writer(record_file, quoting=csv.QUOTE_NONE)
-                # writer.writerow(save_data)
-                contents = ','.join(map(lambda x: '{:.3f}'.format(x), save_data)) + '\n'
-                self.record_file.write(contents)
+            emg_features = self.device_data['emg_features'].ravel()
+
+            contents = ','.join(map(lambda x: '{:.3f}'.format(x), save_data)) + ',' +\
+                       ','.join(map(lambda x: '{:.6f}'.format(x.real), emg_features)) + ',' +\
+                       ','.join(map(lambda x: '{:.6f}'.format(x.imag), emg_features)) + '\n'
+
+            self.record_file.write(contents)
 
     def get_arm_angle(self, is_get):
         with QMutexLocker(self.mutex):

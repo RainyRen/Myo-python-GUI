@@ -7,7 +7,7 @@ from collections import deque
 import numpy as np
 
 import myo
-from myo_filter import Filter, Complementary, Kalman
+from myo_filter import Filter, Complementary, Kalman, STFT
 
 
 class Listener(myo.DeviceListener):
@@ -23,6 +23,7 @@ class Listener(myo.DeviceListener):
 
         # # if moving_ave is False. this will ignore
         self.window_size = window_size
+        self.stft = STFT(self.window_size, window_name='hamming')
 
         # # ===== property init ======
         self.lock = threading.Lock()
@@ -155,6 +156,28 @@ class Listener(myo.DeviceListener):
                 filter_emg_list = filtered_emg[:, :, -1].tolist()
 
             return filter_emg_list
+
+    @property
+    def get_emg_features(self):
+        """
+        get emg time-frequency features from shot-time Fourier transform
+        :return:
+        """
+        raw_emg = np.asarray([tuple(one_emg) for one_emg in self.emg])
+
+        if len(raw_emg.shape) == 3:
+            raw_emg = raw_emg.swapaxes(1, 2)
+            raw_emg = raw_emg.reshape(-1, self.window_size)
+
+            # # check shape is correct
+            assert raw_emg.shape == (len(self.known_myos) * 8, self.window_size)
+
+        else:
+            print(raw_emg.shape)
+            print("get emg loss data")
+            return None
+
+        return self.stft(raw_emg)
 
     @property
     def get_orientation(self):

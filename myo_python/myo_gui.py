@@ -315,8 +315,8 @@ class TableWidget(QWidget):
         self.config_dict['elbow_compensate_k'] = float(self.elbow_compensate_k.text())  # type: float
         self.config_dict['imu_filter'] = self.arm_complementary_rbnt.isChecked()  # type: bool
         self.config_dict['complementary_a'] = float(self.complementary_a.text())  # type: float
-        self.config_dict['send_save'] = []
 
+        self.config_dict['send_save'] = []
         if self.send_arm_angle_checkbox.isChecked():
             self.config_dict['send_save'].append('arm_angle')
 

@@ -16,4 +16,4 @@ send_save:
 - emg
 socket_address: 127.0.0.1:5555
 tcp_mode: false
-window_size: 50
+window_size: 19
