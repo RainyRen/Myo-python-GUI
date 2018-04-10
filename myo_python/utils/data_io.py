@@ -74,21 +74,44 @@ class DataManager(object):
             if val:
                 val = list(map(np.radians, val))
 
+        print("train kinematic data shape: ", tr[0].shape)
+        print("train emg data shape: ", tr[1].shape)
+        print("train target data shape: ", tr[2].shape)
+
+        if self.separate_rate > 0:
+            print("validation kinematic data shape: ", val[0].shape)
+            print("validation emg data shape: ", val[1].shape)
+            print("validation target data shape: ", val[2].shape)
+
+        else:
+            print("no validation data")
+
         return tr, val
 
-    def data_generator(self, batch_size=32):
+    def data_generator(self, batch_size=32, less_memory=False):
         """
         this is design for tensorflow training
         :return:
         """
-        tr_file_cycle = cycle(self.tr_file_list)
+        if less_memory:
+            tr_file_cycle = cycle(self.tr_file_list)
+            val_file_cycle = cycle(self.val_file_list)
+        else:
+            tr_data, val_data = self.get_all_data()
 
         while True:
-            current_file = next(tr_file_cycle)
-            kinematic, emg, target = self._load_data(current_file)
+            samples_num = tr[0].shape[0]
+            n_batch = samples_num // batch_size
+            indices_pool = [(i * batch_size, (i + 1) * batch_size) for i in range(n_batch)]
 
-            n_batch = target.shape[0] // batch_size
-            
+            for index in indices_pool:
+                split_pair = indices_pool[index]
+                s, e = split_pair
+
+                tr_batch = tuple(map(lambda x: x[s:e], tr_data))
+                val_batch = tuple(map(lambda x: x[s:e], val_data))
+
+                yield tr_batch, val_batch
 
     def _load_data(self, file_path):
         """
@@ -126,6 +149,7 @@ class DataManager(object):
         emg_features_mag_2d = emg_features_mag.reshape(emg_features_mag.shape[0], 16, -1)
 
         if self.use_direction:
+            print("convert postion to direction")
             # # if get direction, we need use sign in case value over 1 or -1
             target = np.sign(arm_angle[1:] - arm_angle[:-1])
         else:

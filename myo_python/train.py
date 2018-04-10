@@ -5,7 +5,6 @@ from pathlib import Path
 
 # import numpy as np
 # import pandas as pd
-# import tensorflow as tf
 from keras.callbacks import ModelCheckpoint
 
 from utils.data_io import DataManager
@@ -36,7 +35,7 @@ def train(train_data, validation_data, config):
     else:
         print('create new folder {}'.format(save_folder.stem))
         save_folder.mkdir()
-    # save training config to file
+    # # save training config to file
     with open(str(save_folder / 'config.yml'), 'w') as write_file:
         yaml.dump(config, write_file, default_flow_style=False)
 
@@ -78,7 +77,7 @@ if __name__ == "__main__":
         degree2rad=train_config['degree2rad'],
         use_direction=train_config['use_direction']
     )
-    print("organising materials...")
+    print("organising materials...\n")
     tr_data, val_data = data_mg.get_all_data()
     pdb.set_trace()
 
