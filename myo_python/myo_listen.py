@@ -241,7 +241,7 @@ class MyoListen(QThread):
         self.device_data['orientation'] = self.listener.get_orientation
         self.device_data['acceleration'] = self.listener.get_acceleration
         self.device_data['gyroscope'] = self.listener.get_gyroscope
-        self.device_data['emg_features'] = self.listener.get_emg_features
+        emg_features = self.listener.get_emg_features
         # self.device_data['myo_status'] = self.listener.get_device_state
         # print('\r                 ', end='')
         # print('\r{:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['rpy'][0]), end='')
@@ -284,7 +284,7 @@ class MyoListen(QThread):
             if 'arm_angle' in self.send_save:
                 save_data = list(self.device_data['arm_angle']) + save_data
 
-            emg_features = self.device_data['emg_features'].ravel()
+            emg_features = emg_features.ravel()
 
             contents = ','.join(map(lambda x: '{:.3f}'.format(x), save_data)) + ',' +\
                        ','.join(map(lambda x: '{:.6f}'.format(x.real), emg_features)) + ',' +\

@@ -22,8 +22,9 @@ class EstimatorTF(object):
         pass
 
 
+# # ================================================ Keras ===========================================================
 def k_test(config):
-    from utils.data_io import DataManager, degree2position
+    from utils.data_io import DataManager, angle2position
     from keras.models import load_model
 
     data_mg = DataManager(
@@ -31,17 +32,20 @@ def k_test(config):
         separate_rate=config['separate_rate'],
         time_length=config['time_length'],
         future_time=config['future_time'],
-        one_target=True,
-        degree2rad=config['degree2rad']
+        one_target=config['one_target'],
+        degree2rad=config['degree2rad'],
+        use_direction=train_config['use_direction'],
     )
 
     train_data, test_data = data_mg.get_all_data()
     ts_kinematic, ts_emg, ts_target = test_data
 
-    pdb.set_trace()
-
     model = load_model(config['model_path'])
     result = model.predict([ts_kinematic, ts_emg], batch_size=128, verbose=1)
+
+    if not config['one_target']:
+        result = result[:, -1, :]
+        ts_target = ts_target[:, -1, :]
 
     x = [i * (1 / config['time_length']) for i in range(ts_target.shape[0])]
     # # ----- plot single axis -----
@@ -68,8 +72,8 @@ def k_test(config):
         ts_target = ts_target[200: 300]
         result = result[200: 300]
 
-    x_gt, y_gt, z_gt = degree2position(ts_target)
-    x_es, y_es, z_es = degree2position(result)
+    x_gt, y_gt, z_gt = angle2position(ts_target)
+    x_es, y_es, z_es = angle2position(result)
 
     fig3d = plt.figure(1)
     ax = Axes3D(fig3d)

@@ -4,12 +4,13 @@ from itertools import cycle
 
 import pandas as pd
 import numpy as np
+from keras.utils import to_categorical
 
 
 class DataManager(object):
     def __init__(self, file_path,
                  separate_rate=0.2, time_length=15, future_time=1,
-                 one_target=True, degree2rad=False):
+                 one_target=True, degree2rad=False, use_direction=False):
         """
         data pre-processing, sort out to the format we needed
         :param file_path:
@@ -23,6 +24,7 @@ class DataManager(object):
         self.future_time = future_time
         self.one_target = one_target
         self.degree2rad = degree2rad
+        self.use_direction = use_direction
 
         self.tr_kinematic = list()
         self.tr_emg = list()
@@ -42,6 +44,12 @@ class DataManager(object):
         self.val_file_list = all_file_list[:val_file_num]
 
     def get_all_data(self):
+        """
+        get all training and validation data, this method is for keras training,
+        not appropriate for tensorflow
+        :return:
+        """
+        # # extract data from different files and append to list
         for current_file in self.tr_file_list:
             kinematic, emg, target = self._load_data(current_file)
             self.tr_kinematic.append(kinematic)
@@ -54,10 +62,13 @@ class DataManager(object):
             self.val_emg.append(emg)
             self.val_target.append(target)
 
+        # # self.kinematic, self.emg, self.target now are list contain different files data, index by file order
+        # # we need concatenate all different data to one matrix as model inputs
         tr = list(map(lambda x: np.concatenate(x, axis=0), [self.tr_kinematic, self.tr_emg, self.tr_target]))
         val = list(map(lambda x: np.concatenate(x, axis=0), [self.val_kinematic, self.val_emg, self.val_target]))\
             if self.separate_rate > 0 else None
-                
+
+        # # if we want to use rad as input features not degrees, we need convert first
         if self.degree2rad:
             tr = list(map(np.radians, tr))
             if val:
@@ -66,6 +77,10 @@ class DataManager(object):
         return tr, val
 
     def data_generator(self, batch_size=32):
+        """
+        this is design for tensorflow training
+        :return:
+        """
         tr_file_cycle = cycle(self.tr_file_list)
 
         while True:
@@ -73,12 +88,19 @@ class DataManager(object):
             kinematic, emg, target = self._load_data(current_file)
 
             n_batch = target.shape[0] // batch_size
+            
 
     def _load_data(self, file_path):
+        """
+        internal use function, for each file get data we need
+        return in nd_array form
+        :return:
+        """
         arm_angle_samples = list()
         gyro_samples = list()
         acc_samples = list()
         emg_samples = list()
+        emg_features_samples = list()
         target_samples = list()
 
         data_df = pd.read_csv(file_path, skiprows=1, header=None)
@@ -90,32 +112,64 @@ class DataManager(object):
         gyro = data_df.iloc[:, 10:16].values
         acc = data_df.iloc[:, 16:22].values
         emg = data_df.iloc[:, 22:38].values
+        emg_features_real = data_df.iloc[:, 38:198].values
+        emg_features_imag = data_df.iloc[:, 198:358].values
+
+        # # combine complex value as a image, shape of (samples, channels, frequence band, real or imag)
+        emg_features_3d = np.concatenate(
+            (emg_features_real.reshape(-1, 16, 10, 1), emg_features_imag.reshape(-1, 16, 10, 1)), axis=-1)
+
+        emg_features_complex = emg_features_real + 1j * emg_features_imag
+        # # conver complex to magnitude and all channels are flattened to one row
+        emg_features_mag = np.abs(emg_features_complex)
+        # # reshape magnitude to 2d format, shape of (samples, channels, frequence band)
+        emg_features_mag_2d = emg_features_mag.reshape(emg_features_mag.shape[0], 16, -1)
+
+        if self.use_direction:
+            # # if get direction, we need use sign in case value over 1 or -1
+            target = np.sign(arm_angle[1:] - arm_angle[:-1])
+        else:
+            target = arm_angle[1:]
 
         for i in range(n_sample):
             arm_angle_samples.append(arm_angle[i:i + self.time_length])
             gyro_samples.append(gyro[i:i + self.time_length])
             acc_samples.append(acc[i:i + self.time_length])
             emg_samples.append(emg[i:i + self.time_length])
+            # emg_features_samples.append(
+            #     np.hstack(
+            #         (emg_features_real[i:i + self.time_length], emg_features_imag[i:i + self.time_length]))
+            # )
+            emg_features_samples.append(emg_features_3d[i:i + self.time_length])
+
+            # # if we do regression, we need get next time step position as our labels
             if self.one_target:
-                target_samples.append(arm_angle[i + self.time_length + self.future_time - 1])
+                target_samples.append(target[i + self.time_length + self.future_time - 1 - 1])
             else:
                 # # get multi output target
                 target_samples.append(
-                    arm_angle[i + self.future_time: i + self.time_length + self.future_time]
+                    target[i + self.future_time - 1: i + self.time_length + self.future_time - 1]
                 )
 
+        # # convert list to numpy array
         arm_angle_samples = np.asarray(arm_angle_samples)
         gyro_samples = np.asarray(gyro_samples)
         acc_samples = np.asarray(acc_samples)
 
+        # # merge relative information
         kinematic_samples = np.concatenate((arm_angle_samples, gyro_samples, acc_samples), axis=-1)
         emg_samples = np.asarray(emg_samples)
+        emg_features_samples = np.asarray(emg_features_samples)
         target_samples = np.asarray(target_samples)
 
-        return kinematic_samples, emg_samples, target_samples
+        if self.use_direction:
+            target_samples = to_categorical(target_samples, num_classes=3)
+
+        return kinematic_samples, emg_features_samples, target_samples
 
 
-def degree2position(arm_angle, forearm_len=33, upper_arm_len=32):
+# # ====================================== funcions ===================================================================
+def angle2position(arm_angle, forearm_len=33, upper_arm_len=32):
     """
     convert arm angle to hand position in 3D space
     a1: forearm, a2: upper arm
