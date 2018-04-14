@@ -1,4 +1,5 @@
 # coding: utf-8
+import pdb
 from pathlib import Path
 from itertools import cycle
 
@@ -96,15 +97,16 @@ class DataManager(object):
         if less_memory:
             tr_file_cycle = cycle(self.tr_file_list)
             val_file_cycle = cycle(self.val_file_list)
+            return
         else:
             tr_data, val_data = self.get_all_data()
 
         while True:
-            samples_num = tr[0].shape[0]
+            samples_num = tr_data[0].shape[0]
             n_batch = samples_num // batch_size
             indices_pool = [(i * batch_size, (i + 1) * batch_size) for i in range(n_batch)]
 
-            for index in indices_pool:
+            for index in range(n_batch):
                 split_pair = indices_pool[index]
                 s, e = split_pair
 
@@ -146,7 +148,7 @@ class DataManager(object):
         # # conver complex to magnitude and all channels are flattened to one row
         emg_features_mag = np.abs(emg_features_complex)
         # # reshape magnitude to 2d format, shape of (samples, channels, frequence band)
-        emg_features_mag_2d = emg_features_mag.reshape(emg_features_mag.shape[0], 16, -1)
+        emg_features_mag_3d = emg_features_mag.reshape(emg_features_mag.shape[0], 16, -1, 1)
 
         if self.use_direction:
             print("convert postion to direction")
@@ -164,7 +166,7 @@ class DataManager(object):
             #     np.hstack(
             #         (emg_features_real[i:i + self.time_length], emg_features_imag[i:i + self.time_length]))
             # )
-            emg_features_samples.append(emg_features_3d[i:i + self.time_length])
+            emg_features_samples.append(emg_features_mag_3d[i:i + self.time_length])
 
             # # if we do regression, we need get next time step position as our labels
             if self.one_target:
@@ -192,7 +194,7 @@ class DataManager(object):
         return kinematic_samples, emg_features_samples, target_samples
 
 
-# # ====================================== funcions ===================================================================
+# # ====================================== functions ===================================================================
 def angle2position(arm_angle, forearm_len=33, upper_arm_len=32):
     """
     convert arm angle to hand position in 3D space

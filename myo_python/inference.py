@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from sklearn.metrics import r2_score
 
 # # ===== define global varibles =====
 UPPER_ARM_LEN = 32      # # unit: cm
@@ -28,16 +29,17 @@ def k_test(config):
     from keras.models import load_model
 
     data_mg = DataManager(
-        './data/' + str(config['fs']) + 'hz',
-        separate_rate=config['separate_rate'],
+        './data/' + str(config['fs']) + 'hz' + '/test',
+        separate_rate=0,
         time_length=config['time_length'],
         future_time=config['future_time'],
         one_target=config['one_target'],
         degree2rad=config['degree2rad'],
-        use_direction=train_config['use_direction'],
+        use_direction=config['use_direction'],
     )
 
-    train_data, test_data = data_mg.get_all_data()
+    # train_data, test_data = data_mg.get_all_data()
+    test_data, _ = data_mg.get_all_data()
     ts_kinematic, ts_emg, ts_target = test_data
 
     model = load_model(config['model_path'])
@@ -46,6 +48,12 @@ def k_test(config):
     if not config['one_target']:
         result = result[:, -1, :]
         ts_target = ts_target[:, -1, :]
+
+    r2 = r2_score(ts_target, result)
+    r2_2 = r2_score(ts_target[:, 0], result[:, 0])
+    r2_5 = r2_score(ts_target[:, 1], result[:, 1])
+    r2_7 = r2_score(ts_target[:, 3], result[:, 3])
+    print("r2 all: {}, r2 for 2 axis: {}, r2 for 5 axis: {}, r2 for 7 axis{}".format(r2, r2_2, r2_5, r2_7))
 
     x = [i * (1 / config['time_length']) for i in range(ts_target.shape[0])]
     # # ----- plot single axis -----
@@ -88,7 +96,7 @@ if __name__ == "__main__":
     """
     first we have to select model path
     """
-    model_path = Path('./exp/multi2one_k')
+    model_path = Path('./exp/multi2one_cnn_stft_k')
     with open(model_path / 'config.yml') as config_file:
         test_config = yaml.load(config_file)
     test_config['model_path'] = str(model_path / 'rnn_best.h5')

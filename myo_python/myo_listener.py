@@ -1,5 +1,9 @@
 # coding: utf-8
-import pdb
+"""
+The Script are writen in python 3
+Basic threading event for multi sensor on myo
+Also include method reconstruct arm angle
+"""
 import math
 import threading
 from collections import deque
@@ -207,17 +211,24 @@ class Listener(myo.DeviceListener):
 
 class ArmAngle(object):
     def __init__(self, rotation, dt=0.02):
-        self.yaw_init = [0, 0]
-        self.acc_angle = [[0, 0], [0, 0]]
-        self.euler = [[0, 0, 0], [0, 0, 0]]
+        """
+        This is an implementation of author Lin, Xuan-Zhu method based on C++
+        Using Kalman filter combine accelerometor and gyroscope
+        Do some optimization than origin code
+        :param rotation: Quaternion of angle 2 on Magnetometer
+        :param float dt: sampling time in millisecond
+        """
+        self.yaw_init = [0., 0.]
+        self.acc_angle = [[0., 0.], [0., 0.]]
+        self.euler = [[0., 0., 0.], [0., 0., 0.]]
         self.euler_filter = [[Kalman(), Kalman()], [Kalman(), Kalman()]]
         self.dt = dt
         self.is_init = False
 
-        self.angle_2 = 0
-        self.angle_5 = 0
-        self.angle_6 = 0
-        self.angle_7 = 0
+        self.angle_2 = 0.
+        self.angle_5 = 0.
+        self.angle_6 = 0.
+        self.angle_7 = 0.
         self.calibration(rotation)
 
     def calibration(self, rotation):
@@ -294,16 +305,26 @@ class ArmAngle(object):
 
 
 class ArmAngle2(object):
-    def __init__(self, rpys, compensate_k=0.182, use_filter=True, dt=0.1):
-        self.upper_arm_bias = (0, 0, 0)
-        self.forearm_bias = (0, 0, 0)
-        self.compensate_k = compensate_k
+    def __init__(self, rpys, compensate_k=None, use_filter=True, dt=0.05):
+        """
+        implementation of complementary filter, contain muscle deformation compensate method
+        only using linear compensate method
+        :param rpys:
+        :param compensate_k: tuple contain four arm angle compensate value k
+        :param use_filter: if true, use complementary filter
+        :param float dt: sampling time
+        """
+        self.upper_arm_bias = (0., 0., 0.)
+        self.forearm_bias = (0., 0., 0.)
+        self.compensate_k = compensate_k if compensate_k is not None else (0., 0., 0., 0.)
         self.use_filter = use_filter
 
-        self.angle_2 = 0
-        self.angle_5 = 0
-        self.angle_6 = 0
-        self.angle_7 = 0
+        self.angle_2 = 0.
+        self.angle_5 = 0.
+        self.angle_6 = 0.
+        self.angle_7 = 0.
+
+        self.angle_2_cps_k, self.angle_5_cps_k, self.angle_6_cps_k, self.angle_7_cps_k = self.compensate_k
 
         if self.use_filter:
             self.cpl_filter_2 = Complementary(dt, self.angle_2)
@@ -313,6 +334,11 @@ class ArmAngle2(object):
         self.calibration(rpys)
 
     def calibration(self, rpys):
+        """
+        fast calibration on different initial point
+        :param rpys: list of list contain current arm euler angle
+        :return: None
+        """
         self.forearm_bias, self.upper_arm_bias = rpys
         if self.use_filter:
             self.cpl_filter_2.angle = 0
@@ -323,7 +349,7 @@ class ArmAngle2(object):
         """
         :param rpys: include two arms rpy, in order pitch, roll, yaw
         :param gyr: two myo arm's angular velocity (gyroscope)
-        :return:
+        :return tuple: four current arm angle
         """
         forearm, upper_arm = rpys
 
@@ -339,15 +365,25 @@ class ArmAngle2(object):
         else:
             self.angle_7 = (forearm[1] - self.forearm_bias[1]) - self.angle_5
 
-        if self.angle_7 > 0:
-            self.angle_7 *= (1 + self.compensate_k)
-            if self.angle_7 > 90:
-                self.angle_7 = 90
-        else:
-            self.angle_7 = 0
-            
+        # # ----- calculate muscle deformation compensate -----
+        self.angle_2 *= (1 + self.angle_2_cps_k)
+        self.angle_5 *= (1 + self.angle_5_cps_k)
+        self.angle_6 *= (1 + self.angle_6_cps_k)
+        self.angle_7 *= (1 + self.angle_7_cps_k)
+
+        # # ----- bound each angle value -----
+        self.angle_2 = self._bound(0., 90., self.angle_2)
+        self.angle_5 = self._bound(0., 90., self.angle_5)
+        # self.angle_6 = self._bound(0., 90., self.angle_6)
+        self.angle_7 = self._bound(0., 90., self.angle_7)
+
+        # # Keep two decimal
         self.angle_2, self.angle_5, self.angle_6, self.angle_7 = map(
-                lambda x: round(x, 0), [self.angle_2, self.angle_5, self.angle_6, self.angle_7]
+                lambda x: round(x, 2), [self.angle_2, self.angle_5, self.angle_6, self.angle_7]
         )
 
         return self.angle_2, self.angle_5, self.angle_6, self.angle_7
+
+    @staticmethod
+    def _bound(low, high, value):
+        return max(low, min(high, value))

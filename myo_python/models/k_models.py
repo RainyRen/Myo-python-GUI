@@ -107,7 +107,7 @@ def multi2one(model_config, inference=False):
 
     model = Model([input_kinematic, input_emg], output)
     model.summary()
-    model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])
+    model.compile(optimizer='adam', loss='mean_absolute_error', metrics=['mae'])
 
     return model
 
@@ -154,12 +154,10 @@ def multi2multi_stft(model_config, inference=False):
 
     merge_data = Concatenate()([kinematic_rnn_cell, emg_rnn_cell])
 
-    hidden_1 = TimeDistributed(Dense(hidden_1_neurons))(merge_data)
-    hidden_1 = LeakyReLU(alpha=0.0)(hidden_1)
+    hidden_1 = TimeDistributed(Dense(hidden_1_neurons), activation='selu')(merge_data)
     hidden_1 = Dropout(0.5)(hidden_1)
 
-    hidden_2 = TimeDistributed(Dense(hidden_2_neurons))(hidden_1)
-    hidden_2 = LeakyReLU(alpha=0.0)(hidden_2)
+    hidden_2 = TimeDistributed(Dense(hidden_2_neurons), activation='selu')(hidden_1)
     hidden_2 = Dropout(0.5)(hidden_2)
 
     output = TimeDistributed(Dense(4, activation=None))(hidden_2)
@@ -184,7 +182,7 @@ def multi2one_stft(model_config, inference=False):
 
     # # define two separate inputs
     input_kinematic = Input(shape=(model_config['time_length'], 16))
-    input_emg = Input(shape=(model_config['time_length'], 16, 10, 2))
+    input_emg = Input(shape=(model_config['time_length'], 16, 10, 1))
 
     # # define structures
     cnn_1 = TimeDistributed(
@@ -240,6 +238,59 @@ def multi2one_stft(model_config, inference=False):
         stateful=False)(flatten)
 
     merge_data = Concatenate()([kinematic_rnn_cell, emg_rnn_cell])
+
+    hidden_1 = Dense(hidden_1_neurons, activation='selu')(merge_data)
+    hidden_1 = Dropout(0.4)(hidden_1)
+
+    hidden_2 = Dense(hidden_2_neurons, activation='selu')(hidden_1)
+    hidden_2 = Dropout(0.4)(hidden_2)
+
+    output = Dense(4, activation=None)(hidden_2)
+
+    model = Model([input_kinematic, input_emg], output)
+    model.summary()
+    model.compile(optimizer='adam', loss='mean_absolute_error', metrics=['mae'])
+
+    return model
+
+
+def multi2one_stft2(model_config, inference=False):
+    """
+    model input kinematic and emg in short-time Fourier transform, output the whole time step prediction
+    :param dict model_config:
+    :param bool inference:
+    :return:
+    """
+    from keras.layers import ConvLSTM2D
+
+    rnn_neurons = model_config['rnn_neurons']
+    hidden_1_neurons = model_config['hidden_1_neurons']
+    hidden_2_neurons = model_config['hidden_2_neurons']
+
+    # # define two separate inputs
+    input_kinematic = Input(shape=(model_config['time_length'], 16))
+    input_emg = Input(shape=(model_config['time_length'], 16, 10, 1))
+
+    # # define structures
+    kinematic_rnn_cell = LSTM(
+        128,
+        dropout=0.1,
+        return_sequences=False,
+        stateful=False)(input_kinematic)
+    emg_rnn_cell = ConvLSTM2D(
+        128,                        # # number of filters
+        (3, 1),                     # # kernel size
+        strides=(1, 1),
+        padding='same',
+        dropout=0.3,
+        data_format='channels_first',
+        dilation_rate=(1, 1),
+        return_sequences=False,
+        stateful=False)(input_emg)
+
+    emg_flatten = Flatten()(emg_rnn_cell)
+
+    merge_data = Concatenate()([kinematic_rnn_cell, emg_flatten])
 
     hidden_1 = Dense(hidden_1_neurons, activation='selu')(merge_data)
     hidden_1 = Dropout(0.4)(hidden_1)

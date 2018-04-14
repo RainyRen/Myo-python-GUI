@@ -1,5 +1,8 @@
 complementary_a: 0.98
-elbow_compensate_k: 0.182
+ha_compensate_k: 0.0
+sf_compensate_k: 0.1
+er_compensate_k: 0.0
+ef_compensate_k: 0.182
 emg_filter: true
 filter_order: 4
 imu_filter: true

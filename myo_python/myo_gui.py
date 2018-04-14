@@ -65,7 +65,7 @@ class TableWidget(QWidget):
         # self.tabs.resize(300, 200)
 
         # # ===== Add tabs =====
-        self.tabs.addTab(self.tab_main, "Synch to LabVIEW")
+        self.tabs.addTab(self.tab_main, "Myo Control")
         self.tabs.addTab(self.tab_setting, "Advance Setting")
 
         # # ===== Add main button =====
@@ -160,6 +160,7 @@ class TableWidget(QWidget):
         self.tab_main.layout.addWidget(self.myo_msg)
         self.tab_main.setLayout(self.tab_main.layout)
 
+        # # ============================================================================================================
         # # ===================================== Create second tab ====================================================
         self.myo_mode_group = QButtonGroup(self.tab_setting)
         self.myo_listen_radio_bnt = QRadioButton("Listen Mode")
@@ -181,8 +182,17 @@ class TableWidget(QWidget):
         self.ma_length.setAlignment(Qt.AlignCenter)
         self.ma_length.setRange(1, 1000)
 
-        self.elbow_compensate_k = QLineEdit("0.182")
-        self.elbow_compensate_k.setAlignment(Qt.AlignCenter)
+        # # arm muscle deformation compensate content
+        self.ha_compensate_k = QLineEdit("0.0")               # # horizontal abduction
+        self.ha_compensate_k.setAlignment(Qt.AlignCenter)
+        self.sf_compensate_k = QLineEdit("0.0")                 # # shoulder flexion
+        self.sf_compensate_k.setAlignment(Qt.AlignCenter)
+        self.er_compensate_k = QLineEdit("0.0")                  # # external rotation
+        self.er_compensate_k.setAlignment(Qt.AlignCenter)
+        self.ef_compensate_k = QLineEdit("0.0")                 # # elbow flexion
+        self.ef_compensate_k.setAlignment(Qt.AlignCenter)
+
+        # # imu filter content
         self.arm_filter_group = QButtonGroup(self.tab_setting)
         self.arm_complementary_rbnt = QRadioButton("Complementary")
         self.arm_kalman_rbnt = QRadioButton("Kalman")
@@ -216,42 +226,71 @@ class TableWidget(QWidget):
         # # ----- define different area layout -----
         self.tab_setting.layout = QVBoxLayout(self)
 
-        high_level_layout = QGridLayout()
-        high_level_layout.addWidget(self.myo_listen_radio_bnt, 0, 0)
-        high_level_layout.addWidget(self.myo_feed_radio_bnt, 0, 1)
+        pre_process_layout = QGridLayout()
+        # # run myo mode setting layout
+        pre_process_layout.addWidget(self.myo_listen_radio_bnt, 0, 0)
+        pre_process_layout.addWidget(self.myo_feed_radio_bnt, 0, 1)
 
-        high_level_layout.addWidget(self.hpf_checkbox, 1, 0)
-        high_level_layout.addWidget(self.ma_checkbox, 1, 1)
-        high_level_layout.addWidget(QLabel("Filter Oder:"), 2, 0)
-        high_level_layout.addWidget(self.hpf_filter_oder, 2, 1)
-        high_level_layout.addWidget(QLabel('HPF cutoff fs:'), 3, 0)
-        high_level_layout.addWidget(self.hpf_cutoff_fs, 3, 1)
-        high_level_layout.addWidget(QLabel("MA Length:"), 4, 0)
-        high_level_layout.addWidget(self.ma_length, 4, 1)
+        # # EMG signal filter parameter setting layout
+        pre_process_layout.addWidget(self.hpf_checkbox, 1, 0)
+        pre_process_layout.addWidget(self.ma_checkbox, 1, 1)
+        pre_process_layout.addWidget(QLabel("Filter Oder:"), 2, 0)
+        pre_process_layout.addWidget(self.hpf_filter_oder, 2, 1)
+        pre_process_layout.addWidget(QLabel('HPF cutoff fs:'), 3, 0)
+        pre_process_layout.addWidget(self.hpf_cutoff_fs, 3, 1)
+        pre_process_layout.addWidget(QLabel("MA Length:"), 4, 0)
+        pre_process_layout.addWidget(self.ma_length, 4, 1)
 
-        high_level_layout.addWidget(QLabel("Elbow Compensate:"), 5, 0)
-        high_level_layout.addWidget(self.elbow_compensate_k, 5, 1)
-        high_level_layout.addWidget(self.arm_complementary_rbnt, 6, 0)
-        high_level_layout.addWidget(self.arm_kalman_rbnt, 6, 1)
-        high_level_layout.addWidget(QLabel("Complementary a:"), 7, 0)
-        high_level_layout.addWidget(self.complementary_a, 7, 1)
+        # # IMU filter parameter setting layout
+        pre_process_layout.addWidget(self.arm_complementary_rbnt, 5, 0)
+        pre_process_layout.addWidget(self.arm_kalman_rbnt, 5, 1)
+        pre_process_layout.addWidget(QLabel("Complementary a:"), 6, 0)
+        pre_process_layout.addWidget(self.complementary_a, 6, 1)
 
-        high_level_layout.addWidget(QLabel("Send / Save  Select"), 8, 0)
-        high_level_layout.addWidget(QLabel(""), 8, 1)
-        high_level_layout.addWidget(self.send_arm_angle_checkbox, 9, 0)
-        high_level_layout.addWidget(self.send_imu_checkbox, 9, 1)
-        high_level_layout.addWidget(self.send_emg_checkbox, 10, 0)
-        high_level_layout.addWidget(self.send_status_checkbox, 10, 1)
+        separate_compensate_layout = QHBoxLayout()
+        separate_compensate_layout.addStretch()
+        separate_compensate_layout.addWidget(QLabel("Muscle Deformation Compensate"))
+        separate_compensate_layout.addStretch()
 
-        high_level_layout.addWidget(QLabel("Model Folder"), 11, 0)
-        high_level_layout.addWidget(self.estimator_model_path, 11, 1)
+        # # arm muscle deformation compensate setting layout
+        muscle_compensate_layout = QGridLayout()
+        muscle_compensate_layout.addWidget(QLabel("HA Compensate:"), 1, 0)
+        muscle_compensate_layout.addWidget(self.ha_compensate_k, 1, 1)
+        muscle_compensate_layout.addWidget(QLabel("SF Compensate:"), 2, 0)
+        muscle_compensate_layout.addWidget(self.sf_compensate_k, 2, 1)
+        muscle_compensate_layout.addWidget(QLabel("ER Compensate:"), 3, 0)
+        muscle_compensate_layout.addWidget(self.er_compensate_k, 3, 1)
+        muscle_compensate_layout.addWidget(QLabel("EF Compensate:"), 4, 0)
+        muscle_compensate_layout.addWidget(self.ef_compensate_k, 4, 1)
 
-        high_level_layout.addWidget(self.reset_bnt, 12, 0)
-        high_level_layout.addWidget(self.apply_bnt, 12, 1)
+        separate_text_layout = QHBoxLayout()
+        separate_text_layout.addStretch()
+        separate_text_layout.addWidget(QLabel("Send/Save Item"))
+        separate_text_layout.addStretch()
+
+        # # save and send item selecet layout
+        choose_item_layout = QGridLayout()
+        choose_item_layout.addWidget(self.send_arm_angle_checkbox, 1, 0)
+        choose_item_layout.addWidget(self.send_imu_checkbox, 1, 1)
+        choose_item_layout.addWidget(self.send_emg_checkbox, 2, 0)
+        choose_item_layout.addWidget(self.send_status_checkbox, 2, 1)
+
+        pre_process_layout.addWidget(QLabel("Model Folder"), 3, 0)
+        pre_process_layout.addWidget(self.estimator_model_path, 3, 1)
+
+        choose_item_layout.addWidget(self.reset_bnt, 4, 0)
+        choose_item_layout.addWidget(self.apply_bnt, 4, 1)
 
         # # organize layout
-        self.tab_setting.layout.addLayout(high_level_layout)
+        self.tab_setting.layout.addLayout(pre_process_layout)
+        self.tab_setting.layout.addLayout(separate_compensate_layout)
+        self.tab_setting.layout.addLayout(muscle_compensate_layout)
+        self.tab_setting.layout.addLayout(separate_text_layout)
+        self.tab_setting.layout.addLayout(choose_item_layout)
+        # self.tab_setting.layout.addStretch()
         self.tab_setting.setLayout(self.tab_setting.layout)
+
+        # # ==========================================================================================================
 
         # # ===== Add tabs to widget =====
         self.layout.addWidget(self.tabs)
@@ -290,7 +329,10 @@ class TableWidget(QWidget):
         self.ma_length.setValue(self.config_dict['window_size'])
         self.socket_address.setText(self.config_dict['socket_address'])
         self.send_fs.setValue(self.config_dict['send_fs'])
-        self.elbow_compensate_k.setText(str(self.config_dict['elbow_compensate_k']))
+        self.ha_compensate_k.setText(str(self.config_dict['ha_compensate_k']))
+        self.sf_compensate_k.setText(str(self.config_dict['sf_compensate_k']))
+        self.er_compensate_k.setText(str(self.config_dict['er_compensate_k']))
+        self.ef_compensate_k.setText(str(self.config_dict['ef_compensate_k']))
         self.arm_complementary_rbnt.setChecked(self.config_dict['imu_filter'])
         self.complementary_a.setText(str(self.config_dict['complementary_a']))
 
@@ -312,7 +354,10 @@ class TableWidget(QWidget):
         self.config_dict['window_size'] = self.ma_length.value()  # type: int
         self.config_dict['socket_address'] = self.socket_address.text()  # type: str
         self.config_dict['send_fs'] = self.send_fs.value()  # type: int
-        self.config_dict['elbow_compensate_k'] = float(self.elbow_compensate_k.text())  # type: float
+        self.config_dict['ha_compensate_k'] = float(self.ha_compensate_k.text())  # type: float
+        self.config_dict['sf_compensate_k'] = float(self.sf_compensate_k.text())  # type: float
+        self.config_dict['er_compensate_k'] = float(self.er_compensate_k.text())  # type: float
+        self.config_dict['ef_compensate_k'] = float(self.ef_compensate_k.text())  # type: float
         self.config_dict['imu_filter'] = self.arm_complementary_rbnt.isChecked()  # type: bool
         self.config_dict['complementary_a'] = float(self.complementary_a.text())  # type: float
 
@@ -399,8 +444,14 @@ class TableWidget(QWidget):
             print("tcp send")
             self.myo_dongle.socket_connect(True)
 
+            # # ===== set send button icon =====
+            self.tcp_send_bnt.setIcon(QIcon(str(IMAGE_PATH / "stop.png")))
+
         else:
             self.myo_dongle.socket_connect(False)
+
+            # # ===== set send button icon =====
+            self.tcp_send_bnt.setIcon(QIcon(str(IMAGE_PATH / "send.png")))
 
     def arm_calibration(self):
         self.myo_dongle.arm_calibration()

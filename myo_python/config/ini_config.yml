@@ -1,7 +1,9 @@
 complementary_a: 0.98
-elbow_compensate_k: 0.182
+ef_compensate_k: 0.182
 emg_filter: true
+er_compensate_k: 0.0
 filter_order: 4
+ha_compensate_k: 0.0
 imu_filter: true
 low_cutoff: 2
 model_path: multi2one_k
@@ -14,6 +16,7 @@ send_save:
 - gyroscope
 - acceleration
 - emg
+sf_compensate_k: 0.1
 socket_address: 127.0.0.1:5555
 tcp_mode: false
 window_size: 19

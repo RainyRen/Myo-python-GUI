@@ -28,19 +28,22 @@ class MyoListen(QThread):
     def __init__(self, ini_config, parent=None):
         super(self.__class__, self).__init__(parent)
         # # ===== load parameter from config file =====
-        self.is_tcp = ini_config['tcp_mode']
-        self.is_req_mode = ini_config['req_mode']
-        self.socket_address = ini_config['socket_address']
-        self.emg_filter = ini_config['emg_filter']
-        self.moving_ave = ini_config['moving_ave']
-        self.filter_order = ini_config['filter_order']
-        self.low_cutoff = ini_config['low_cutoff']
-        self.window_size = ini_config['window_size']
-        self.send_fs = ini_config['send_fs']      # type: int
-        self.imu_filter = ini_config['imu_filter']
-        self.complementary_a = ini_config['complementary_a']
-        self.elbow_compensate_k = ini_config['elbow_compensate_k']
-        self.send_save = ini_config['send_save']
+        self.is_tcp = ini_config['tcp_mode']                    # type: bool
+        self.is_req_mode = ini_config['req_mode']               # type: bool
+        self.socket_address = ini_config['socket_address']      # type: str
+        self.emg_filter = ini_config['emg_filter']              # type: bool
+        self.moving_ave = ini_config['moving_ave']              # type: bool
+        self.filter_order = ini_config['filter_order']          # type: int
+        self.low_cutoff = ini_config['low_cutoff']              # type: int
+        self.window_size = ini_config['window_size']            # type: int
+        self.send_fs = ini_config['send_fs']                    # type: int
+        self.imu_filter = ini_config['imu_filter']              # type: bool
+        self.complementary_a = ini_config['complementary_a']    # type: float
+        self.ha_compensate_k = ini_config['ha_compensate_k']    # type: float
+        self.sf_compensate_k = ini_config['sf_compensate_k']    # type: float
+        self.er_compensate_k = ini_config['er_compensate_k']    # type: float
+        self.ef_compensate_k = ini_config['ef_compensate_k']    # type: float
+        self.send_save = ini_config['send_save']                # type: list
         self.emg_fs = 200       # device EMG sampling frequency
         self.connect_state = False
         print('save content: ', self.send_save)
@@ -251,8 +254,8 @@ class MyoListen(QThread):
             #     self.device_data['orientation'], self.device_data['acceleration'], self.device_data['gyroscope'])
             self.device_data['arm_angle'] = list(self.arm_angle.cal_arm_angle(
                 self.device_data['rpy'], gyr=self.device_data['gyroscope']))
-            print('\r                 ', end='')
-            print('\r{:.1f}, {:.1f}, {:.1f}, {:.1f}'.format(*self.device_data['arm_angle']), end='')
+            print('\r                       ', end='')
+            print('\r{:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['arm_angle']), end='')
 
         else:
             self.device_data['arm_angle'] = []
@@ -269,7 +272,7 @@ class MyoListen(QThread):
                     [np.asarray(self._kinematic_window)[np.newaxis, :], np.asarray(self._emg_window)[np.newaxis, :]],
                     batch_size=1,
                 ).ravel()).tolist()
-                print(' | {:.1f}, {:.1f}, {:.1f}, {:.1f}'.format(*self.device_data['estimate_angle']), end='')
+                print(' | {:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['estimate_angle']), end='')
         else:
             self.device_data['estimate_angle'] = []
 
@@ -299,9 +302,13 @@ class MyoListen(QThread):
 
             elif is_get and 'rpy' in self.device_data:
                 # self.arm_angle = ArmAngle(self.device_data['orientation'], dt=0.02)
+                arm_compensate_k = (
+                    self.ha_compensate_k, self.sf_compensate_k, self.er_compensate_k, self.ef_compensate_k
+                )
+
                 self.arm_angle = ArmAngle2(
                     self.device_data['rpy'],
-                    compensate_k=self.elbow_compensate_k, use_filter=self.imu_filter, dt=(1/self.send_fs)
+                    compensate_k=arm_compensate_k, use_filter=self.imu_filter, dt=(1/self.send_fs)
                 )
                 self.get_arm_angle_signal = True
 

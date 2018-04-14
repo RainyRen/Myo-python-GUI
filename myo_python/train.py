@@ -8,7 +8,7 @@ from pathlib import Path
 from keras.callbacks import ModelCheckpoint
 
 from utils.data_io import DataManager
-from models.k_models import multi2one_stft
+from models import k_models
 
 # # ===== global parameters =====
 ROOT_PATH = Path(__file__).parent
@@ -41,7 +41,7 @@ def train(train_data, validation_data, config):
 
     tr_kinematic, tr_emg, tr_target = train_data
     val_kinematic, val_emg, val_target = validation_data
-    model = multi2one_stft(config)
+    model = k_models.multi2one_stft2(config)
 
     checkpoint = ModelCheckpoint(
         filepath=str(save_folder / 'rnn_best.h5'),
