@@ -29,23 +29,24 @@ def k_test(config):
     from utils.data_io import DataManager, angle2position
     from keras.models import load_model
 
-    data_mg = DataManager(
+    test_data_loader = DataManager(
         './data/' + str(config['fs']) + 'hz' + '/test',
         separate_rate=0,
         time_length=config['time_length'],
         future_time=config['future_time'],
         one_target=config['one_target'],
         degree2rad=config['degree2rad'],
-        use_direction=config['use_direction'],
+        use_direction=False,
     )
     dt = 1 / config['fs']
 
     # train_data, test_data = data_mg.get_all_data()
-    test_data, _ = data_mg.get_all_data()
+    test_data, _ = test_data_loader.get_all_data()
     ts_kinematic, ts_emg, ts_target = test_data
 
     model = load_model(config['model_path'])
     result = model.predict([ts_kinematic, ts_emg], batch_size=128, verbose=1)
+    # result = model.predict_on_batch([ts_kinematic, ts_emg])
 
     if not config['one_target']:
         result = result[:, -1, :]
@@ -58,16 +59,18 @@ def k_test(config):
     r2_6 = r2_score(ts_target[:, 2], result[:, 2])
     r2_7 = r2_score(ts_target[:, 3], result[:, 3])
     print("--------- r2 score ---------")
-    print("r2 all: {}".format(r2))
-    print("r2 for 2 axis: {}, r2 for 5 axis: {}, r2 for 7 axis {}, r2 for 7 axis {}".format(r2_2, r2_5, r2_6, r2_7))
+    print("r2 all: {:.2f}".format(r2))
+    print("r2 for 2 axis: {:.2f}, r2 for 5 axis: {:.2f}, r2 for 7 axis {:.2f}, r2 for 7 axis {:.2f}"
+          .format(r2_2, r2_5, r2_6, r2_7))
     print("----------------------------")
 
     mae = math.degrees(mean_absolute_error(ts_target, result))
     mae_single_rad = map(mean_absolute_error, ts_target.T, result.T)
     mae_single_degrees = list(map(math.degrees, mae_single_rad))
     print("-------- mean absolute error ---------")
-    print("mae all: {}".format(mae))
-    print("2 axis mae: {}, 5 axis mae: {}, 6 axis mae: {}, 7 axis mae {}".format(*mae_single_degrees))
+    print("mae all: {:.2f}".format(mae))
+    print("2 axis mae: {:.2f}, 5 axis mae: {:.2f}, 6 axis mae: {:.2f}, 7 axis mae {:.2f}"
+          .format(*mae_single_degrees))
     print("--------------------------------------")
 
     fake_result = ts_kinematic[:, -1, :4]
@@ -75,8 +78,9 @@ def k_test(config):
     mae_fake_single_rad = map(mean_absolute_error, ts_target.T, fake_result.T)
     mae_fake_single_degrees = list(map(math.degrees, mae_fake_single_rad))
     print("-------- mean absolute error ---------")
-    print("mae all: {}".format(mae_fake))
-    print("2 axis mae: {}, 5 axis mae: {}, 6 axis mae: {}, 7 axis mae {}".format(*mae_fake_single_degrees))
+    print("mae all: {:.2f}".format(mae_fake))
+    print("2 axis mae: {:.2f}, 5 axis mae: {:.2f}, 6 axis mae: {:.2f}, 7 axis mae {:.2f}"
+          .format(*mae_fake_single_degrees))
     print("--------------------------------------")
 
     ts_target_dot = np.sign((ts_target[1:] - ts_target[:-1]) / dt)
@@ -87,9 +91,9 @@ def k_test(config):
     mae_single_v = list(map(mean_absolute_error, ts_target_dot.T, result_dot.T))
     mar_fake_single_v = list(map(mean_absolute_error, ts_target_dot.T, fake_result_dot.T))
     print("-------- velocity mean absolute error ---------")
-    print("mae v all: {}, mae v for fake {}".format(mae_v, mae_fake_v))
-    print("2 v mae: {}, 5 v mae: {}, 6 v mae: {}, 7 v mae {}".format(*mae_single_v))
-    print("fake -- 2 v mae: {}, 5 v mae: {}, 6 v mae: {}, 7 v mae {}".format(*mar_fake_single_v))
+    print("mae v all: {:.2f}, mae v for fake {:.2f}".format(mae_v, mae_fake_v))
+    print("2 v mae: {:.2f}, 5 v mae: {:.2f}, 6 v mae: {:.2f}, 7 v mae {:.2f}".format(*mae_single_v))
+    print("fake -- 2 v mae: {:.2f}, 5 v mae: {:.2f}, 6 v mae: {:.2f}, 7 v mae {:.2f}".format(*mar_fake_single_v))
     print("--------------------------------------")
     pdb.set_trace()
     # # =========================================================================================
@@ -135,7 +139,7 @@ if __name__ == "__main__":
     """
     first we have to select model path
     """
-    model_path = Path('./exp/multi2one_stft_k')
+    model_path = Path('./exp/multi2one_stft_k_n')
     with open(model_path / 'config.yml') as config_file:
         test_config = yaml.load(config_file)
     test_config['model_path'] = str(model_path / 'rnn_best.h5')

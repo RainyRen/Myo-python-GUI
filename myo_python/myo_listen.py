@@ -179,7 +179,7 @@ class MyoListen(QThread):
             self.socket.send_string(send_msg)
 
         else:
-            send_msg = bytes(json.dumps(self.device_data['arm_angle']), 'utf-8')
+            send_msg = bytes(json.dumps(self.device_data['arm_angle'] + self.device_data['estimate_angle']), 'utf-8')
             self.socket.sendto(send_msg, self.udp_address)
 
     def record(self, file_name, is_record):
@@ -203,6 +203,7 @@ class MyoListen(QThread):
             return self.stop_signal
 
     def _req_mode(self):
+        self.msg_signal.emit('request mode on')
         while self.hub.running:
             cmd = self.socket.recv()
 
@@ -219,6 +220,7 @@ class MyoListen(QThread):
                 print("No such command")
 
     def _pub_mode(self):
+        self.msg_signal.emit('publish mode on')
         while self.hub.running:
             t_start = time.time()
             self._get_devices_data()
@@ -255,24 +257,39 @@ class MyoListen(QThread):
             self.device_data['arm_angle'] = list(self.arm_angle.cal_arm_angle(
                 self.device_data['rpy'], gyr=self.device_data['gyroscope']))
             print('\r                       ', end='')
-            print('\r{:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['arm_angle']), end='')
+            print('\r{}, {}, {}, {}'.format(*self.device_data['arm_angle']), end='')
 
         else:
             self.device_data['arm_angle'] = []
 
         if self.estimate_signal:
             # # it must be two myo, so directly select two data
+            # arm_angle = self.device_data['arm_angle']
             arm_angle = list(map(math.radians, self.device_data['arm_angle']))
             gyr = self.device_data['gyroscope'][0] + self.device_data['gyroscope'][1]
+            gyr = list(map(lambda x: round(x, 3), gyr))
             acc = self.device_data['acceleration'][0] + self.device_data['acceleration'][1]
+            acc = list(map(lambda x: round(x, 3), acc))
+            emg_features_mag_3d = np.abs(emg_features).round(6)
+
             self._kinematic_window.append(arm_angle + gyr + acc)
-            self._emg_window.append(self.device_data['emg'][0] + self.device_data['emg'][1])
+            # self._emg_window.append(self.device_data['emg'][0] + self.device_data['emg'][1])
+            self._emg_window.append(emg_features_mag_3d)
+
             if len(self._kinematic_window) == self._model_window_size:
-                self.device_data['estimate_angle'] = np.degrees(self.estimator.predict(
-                    [np.asarray(self._kinematic_window)[np.newaxis, :], np.asarray(self._emg_window)[np.newaxis, :]],
-                    batch_size=1,
-                ).ravel()).tolist()
-                print(' | {:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['estimate_angle']), end='')
+                input_kinematic = np.asarray(self._kinematic_window)[np.newaxis, ...]
+                input_emg = np.asarray(self._emg_window)[np.newaxis, ..., np.newaxis]
+
+                input_emg = input_emg / 60.0
+
+                # input_kinematic = np.radians(input_kinematic)
+                # input_emg = np.radians(input_emg)
+
+                estimate_angle_rad = self.estimator.predict_on_batch([input_kinematic, input_emg])
+                estimate_angle_deg = np.degrees(estimate_angle_rad).ravel()
+                self.device_data['estimate_angle'] = list(map(lambda x: round(x, 2), estimate_angle_deg))
+
+                print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')
         else:
             self.device_data['estimate_angle'] = []
 

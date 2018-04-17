@@ -178,7 +178,7 @@ class Listener(myo.DeviceListener):
 
         else:
             print(raw_emg.shape)
-            print("get emg loss data")
+            print("get emg features loss data")
             return None
 
         return self.stft(raw_emg)

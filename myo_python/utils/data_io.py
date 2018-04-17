@@ -11,7 +11,7 @@ from keras.utils import to_categorical
 class DataManager(object):
     def __init__(self, file_path,
                  separate_rate=0.2, time_length=15, future_time=1,
-                 one_target=True, degree2rad=False, use_direction=False):
+                 one_target=True, degree2rad=False, use_direction=False, direction_threshold=0.4):
         """
         data pre-processing, sort out to the format we needed
         :param file_path:
@@ -69,11 +69,19 @@ class DataManager(object):
         val = list(map(lambda x: np.concatenate(x, axis=0), [self.val_kinematic, self.val_emg, self.val_target]))\
             if self.separate_rate > 0 else None
 
+        # # normalize emg
+        tr[1] = tr[1] / 60.0
+        if val:
+            val[1] = val[1] / 60.0
+
+        # # !!!!!!!!!!!!!! problem, but can get good result !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # # !!! if want to reproduce problem model, not normalize and cancel degree2rad in self._load_data !!!
         # # if we want to use rad as input features not degrees, we need convert first
-        if self.degree2rad:
-            tr = list(map(np.radians, tr))
-            if val:
-                val = list(map(np.radians, val))
+        # if self.degree2rad:
+        #     tr = list(map(np.radians, tr))
+        #     if val:
+        #         val = list(map(np.radians, val))
+        # # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         print("train kinematic data shape: ", tr[0].shape)
         print("train emg data shape: ", tr[1].shape)
@@ -140,9 +148,15 @@ class DataManager(object):
         emg_features_real = data_df.iloc[:, 38:198].values
         emg_features_imag = data_df.iloc[:, 198:358].values
 
+        if self.degree2rad:
+            arm_angle = np.radians(arm_angle)
+
         # # combine complex value as a image, shape of (samples, channels, frequence band, real or imag)
         emg_features_3d = np.concatenate(
-            (emg_features_real.reshape(-1, 16, 10, 1), emg_features_imag.reshape(-1, 16, 10, 1)), axis=-1)
+            (emg_features_real.reshape(emg_features_real.shape[0], 16, -1, 1),
+             emg_features_imag.reshape(emg_features_imag.shape[0], 16, -1, 1)),
+            axis=-1
+        )
 
         emg_features_complex = emg_features_real + 1j * emg_features_imag
         # # convert complex to magnitude and all channels are flattened to one row
@@ -152,8 +166,9 @@ class DataManager(object):
 
         if self.use_direction:
             print("convert postion to direction")
-            # # if get direction, we need use sign in case value over 1 or -1
-            target = np.sign(arm_angle[1:] - arm_angle[:-1])
+            target_direction_value = np.abs(arm_angle[1:] - arm_angle[:-1])
+            target = np.where(target_direction_value > direction_threshold, 1, 0)
+
         else:
             target = arm_angle[1:]
 
@@ -218,6 +233,24 @@ def angle2position(arm_angle, forearm_len=33, upper_arm_len=32):
     z = forearm_len * sin57 * cos6 + upper_arm_len * sin5
 
     return x, y, z
+
+
+def folder_check(folder_path):
+    """
+    :param folder_path: type of str or Path, which need to check if exists
+    :retrun: None
+    """
+    folder_path = Path(folder_path)
+
+    if folder_path.exists():
+        user_input = input('folder {} already exist, do you want to overrider? [y/n] '
+                           .format(folder_path.stem))
+        if user_input in ('n', 'no', 'N', 'No'):
+            print('please reset your arguments')
+            exit(0)
+    else:
+        print('create new folder {}'.format(folder_path.stem))
+        folder_path.mkdir()
 
 
 if __name__ == "__main__":

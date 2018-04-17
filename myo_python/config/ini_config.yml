@@ -3,10 +3,10 @@ ef_compensate_k: 0.182
 emg_filter: true
 er_compensate_k: 0.0
 filter_order: 4
-ha_compensate_k: 0.0
+ha_compensate_k: 0.18
 imu_filter: true
 low_cutoff: 2
-model_path: multi2one_k
+model_path: multi2one_stft_k_n
 moving_ave: true
 req_mode: false
 send_fs: 20
