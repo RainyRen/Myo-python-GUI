@@ -6,14 +6,14 @@ from keras.layers import (Input, Concatenate,
                           Conv2D, MaxPooling2D,
                           TimeDistributed,
                           Dropout,
-                          LSTM,
+                          LSTM, ConvLSTM2D,
                           GRU,
                           Activation)
 # from keras.optimizers import Adam
 from keras.callbacks import Callback
 
 
-# # =============================================== keras model =====================================================
+# # =============================================== post fusion model ==================================================
 def multi2multi(model_config, inference=False):
     """
     multiple input get multiple output, return are vector
@@ -187,7 +187,7 @@ def multi2one_stft(model_config, inference=False):
     # # define structures
     cnn_1 = TimeDistributed(
         Conv2D(
-            32,
+            16,
             3,
             data_format="channels_first",
             padding='same',
@@ -195,7 +195,7 @@ def multi2one_stft(model_config, inference=False):
             strides=1))(input_emg)
     cnn_2 = TimeDistributed(
         Conv2D(
-            32,
+            16,
             3,
             data_format="channels_first",
             padding='same',
@@ -206,7 +206,7 @@ def multi2one_stft(model_config, inference=False):
 
     cnn_3 = TimeDistributed(
         Conv2D(
-            64,
+            32,
             3,
             data_format="channels_first",
             padding='same',
@@ -217,25 +217,37 @@ def multi2one_stft(model_config, inference=False):
 
     cnn_4 = TimeDistributed(
         Conv2D(
-            128,
+            64,
             3,
             data_format="channels_first",
             padding='same',
             activation='relu',
             strides=1))(max_pool_2)
 
-    flatten = TimeDistributed(Flatten())(cnn_4)
+    # flatten = TimeDistributed(Flatten())(cnn_4)
 
     kinematic_rnn_cell = LSTM(
-        256,
+        64,
         dropout=0.1,
         return_sequences=False,
         stateful=False)(input_kinematic)
-    emg_rnn_cell = LSTM(
-        256,
-        dropout=0.3,
+    # emg_rnn_cell = LSTM(
+    #     256,
+    #     dropout=0.3,
+    #     return_sequences=False,
+    #     stateful=False)(cnn_4)
+    emg_rnn_cell = ConvLSTM2D(
+        64,  # # number of filters
+        (3, 1),  # # kernel size
+        strides=(1, 1),
+        padding='same',
+        dropout=0.2,
+        data_format='channels_first',
+        dilation_rate=(1, 1),
         return_sequences=False,
-        stateful=False)(flatten)
+        stateful=False)(cnn_4)
+
+    emg_rnn_cell = Flatten()(emg_rnn_cell)
 
     merge_data = Concatenate()([kinematic_rnn_cell, emg_rnn_cell])
 
@@ -254,14 +266,13 @@ def multi2one_stft(model_config, inference=False):
     return model
 
 
-def multi2one_stft2(model_config, inference=False):
+def multi2one_simple_stft(model_config, inference=False):
     """
     model input kinematic and emg in short-time Fourier transform, output the whole time step prediction
     :param dict model_config:
     :param bool inference:
     :return:
     """
-    from keras.layers import ConvLSTM2D
 
     rnn_neurons = model_config['rnn_neurons']
     hidden_1_neurons = model_config['hidden_1_neurons']
@@ -305,6 +316,11 @@ def multi2one_stft2(model_config, inference=False):
     model.compile(optimizer='adam', loss='mean_absolute_error', metrics=['mae'])
 
     return model
+
+
+# # ============================================== previous fusion =====================================================
+def multi2one_2():
+    pass
 
 
 class DumpHistory(Callback):

@@ -372,14 +372,14 @@ class ArmAngle2(object):
         self.angle_7 *= (1 + self.angle_7_cps_k)
 
         # # ----- bound each angle value -----
-        self.angle_2 = self._bound(0., 90., self.angle_2)
-        self.angle_5 = self._bound(0., 90., self.angle_5)
+        # self.angle_2 = self._bound(0., 90., self.angle_2)
+        # self.angle_5 = self._bound(0., 90., self.angle_5)
         # self.angle_6 = self._bound(0., 90., self.angle_6)
         self.angle_7 = self._bound(0., 90., self.angle_7)
 
         # # Keep two decimal
         self.angle_2, self.angle_5, self.angle_6, self.angle_7 = map(
-                lambda x: round(x, 2), [self.angle_2, self.angle_5, self.angle_6, self.angle_7]
+            lambda x: round(x, 2), [self.angle_2, self.angle_5, self.angle_6, self.angle_7]
         )
 
         return self.angle_2, self.angle_5, self.angle_6, self.angle_7

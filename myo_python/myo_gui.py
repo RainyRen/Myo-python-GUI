@@ -254,14 +254,14 @@ class TableWidget(QWidget):
 
         # # arm muscle deformation compensate setting layout
         muscle_compensate_layout = QGridLayout()
-        muscle_compensate_layout.addWidget(QLabel("HA Compensate:"), 1, 0)
-        muscle_compensate_layout.addWidget(self.ha_compensate_k, 1, 1)
-        muscle_compensate_layout.addWidget(QLabel("SF Compensate:"), 2, 0)
-        muscle_compensate_layout.addWidget(self.sf_compensate_k, 2, 1)
-        muscle_compensate_layout.addWidget(QLabel("ER Compensate:"), 3, 0)
-        muscle_compensate_layout.addWidget(self.er_compensate_k, 3, 1)
-        muscle_compensate_layout.addWidget(QLabel("EF Compensate:"), 4, 0)
-        muscle_compensate_layout.addWidget(self.ef_compensate_k, 4, 1)
+        muscle_compensate_layout.addWidget(QLabel("HA Compensate:"), 0, 0)
+        muscle_compensate_layout.addWidget(self.ha_compensate_k, 0, 1)
+        muscle_compensate_layout.addWidget(QLabel("SF Compensate:"), 1, 0)
+        muscle_compensate_layout.addWidget(self.sf_compensate_k, 1, 1)
+        muscle_compensate_layout.addWidget(QLabel("ER Compensate:"), 2, 0)
+        muscle_compensate_layout.addWidget(self.er_compensate_k, 2, 1)
+        muscle_compensate_layout.addWidget(QLabel("EF Compensate:"), 3, 0)
+        muscle_compensate_layout.addWidget(self.ef_compensate_k, 3, 1)
 
         separate_text_layout = QHBoxLayout()
         separate_text_layout.addStretch()
@@ -270,16 +270,16 @@ class TableWidget(QWidget):
 
         # # save and send item selecet layout
         choose_item_layout = QGridLayout()
-        choose_item_layout.addWidget(self.send_arm_angle_checkbox, 1, 0)
-        choose_item_layout.addWidget(self.send_imu_checkbox, 1, 1)
-        choose_item_layout.addWidget(self.send_emg_checkbox, 2, 0)
-        choose_item_layout.addWidget(self.send_status_checkbox, 2, 1)
+        choose_item_layout.addWidget(self.send_arm_angle_checkbox, 0, 0)
+        choose_item_layout.addWidget(self.send_imu_checkbox, 0, 1)
+        choose_item_layout.addWidget(self.send_emg_checkbox, 1, 0)
+        choose_item_layout.addWidget(self.send_status_checkbox, 1, 1)
 
-        pre_process_layout.addWidget(QLabel("Model Folder"), 3, 0)
-        pre_process_layout.addWidget(self.estimator_model_path, 3, 1)
+        choose_item_layout.addWidget(QLabel("Model Folder"), 2, 0)
+        choose_item_layout.addWidget(self.estimator_model_path, 2, 1)
 
-        choose_item_layout.addWidget(self.reset_bnt, 4, 0)
-        choose_item_layout.addWidget(self.apply_bnt, 4, 1)
+        choose_item_layout.addWidget(self.reset_bnt, 3, 0)
+        choose_item_layout.addWidget(self.apply_bnt, 3, 1)
 
         # # organize layout
         self.tab_setting.layout.addLayout(pre_process_layout)

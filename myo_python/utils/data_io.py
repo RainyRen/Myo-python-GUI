@@ -145,7 +145,7 @@ class DataManager(object):
             (emg_features_real.reshape(-1, 16, 10, 1), emg_features_imag.reshape(-1, 16, 10, 1)), axis=-1)
 
         emg_features_complex = emg_features_real + 1j * emg_features_imag
-        # # conver complex to magnitude and all channels are flattened to one row
+        # # convert complex to magnitude and all channels are flattened to one row
         emg_features_mag = np.abs(emg_features_complex)
         # # reshape magnitude to 2d format, shape of (samples, channels, frequence band)
         emg_features_mag_3d = emg_features_mag.reshape(emg_features_mag.shape[0], 16, -1, 1)

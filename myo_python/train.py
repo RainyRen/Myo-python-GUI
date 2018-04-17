@@ -41,7 +41,7 @@ def train(train_data, validation_data, config):
 
     tr_kinematic, tr_emg, tr_target = train_data
     val_kinematic, val_emg, val_target = validation_data
-    model = k_models.multi2one_stft2(config)
+    model = k_models.multi2one_stft(config)
 
     checkpoint = ModelCheckpoint(
         filepath=str(save_folder / 'rnn_best.h5'),
