@@ -1,5 +1,6 @@
 # coding: utf-8
 # import numpy as np
+import keras.backend as K
 from keras.models import Model
 from keras.layers import (Input, Concatenate,
                           Dense, Flatten,
@@ -326,8 +327,83 @@ def multi2one_2():
 
 # # ====================================================================================================================
 # # ============================================== classifier ==========================================================
-def bin_cls():
-    pass
+def bin_cls(model_config):
+    # from keras import metrics
+
+    hidden_1_neurons = 128
+    hidden_2_neurons = 128
+
+    input_emg = Input(shape=(model_config['time_length'], 16, 10, 1))
+
+    # # define structures
+    cnn_1 = TimeDistributed(
+        Conv2D(
+            16,
+            3,
+            data_format="channels_first",
+            padding='same',
+            activation='relu',
+            strides=1))(input_emg)
+    cnn_2 = TimeDistributed(
+        Conv2D(
+            16,
+            3,
+            data_format="channels_first",
+            padding='same',
+            activation='relu',
+            strides=1))(cnn_1)
+
+    max_pool_1 = TimeDistributed(MaxPooling2D(pool_size=(2, 1)))(cnn_2)
+
+    cnn_3 = TimeDistributed(
+        Conv2D(
+            32,
+            3,
+            data_format="channels_first",
+            padding='same',
+            activation='relu',
+            strides=1))(max_pool_1)
+
+    max_pool_2 = TimeDistributed(MaxPooling2D(pool_size=(2, 1)))(cnn_3)
+
+    cnn_4 = TimeDistributed(
+        Conv2D(
+            64,
+            3,
+            data_format="channels_first",
+            padding='same',
+            activation='relu',
+            strides=1))(max_pool_2)
+
+    emg_rnn_cell = ConvLSTM2D(
+        64,  # # number of filters
+        (3, 1),  # # kernel size
+        strides=(1, 1),
+        padding='same',
+        dropout=0.2,
+        data_format='channels_first',
+        dilation_rate=(1, 1),
+        return_sequences=False,
+        stateful=False)(cnn_4)
+
+    emg_flatten = Flatten()(emg_rnn_cell)
+
+    hidden_1 = Dense(hidden_1_neurons, activation='relu')(emg_flatten)
+    hidden_1 = Dropout(0.4)(hidden_1)
+
+    hidden_2 = Dense(hidden_2_neurons, activation='relu')(hidden_1)
+    hidden_2 = Dropout(0.4)(hidden_2)
+
+    output = Dense(4, activation='sigmoid')(hidden_2)
+
+    model = Model(input_emg, output)
+    model.summary()
+    model.compile(
+        optimizer='adam',
+        loss='binary_crossentropy',
+        metrics=['accuracy', f1_score])
+
+    return model
 
 # # ====================================================================================================================
 
@@ -354,6 +430,17 @@ class DumpHistory(Callback):
                 logs.get('val_acc'),
             )
             log_file.write(log)
+
+
+def f1_score(y_true, y_pred):
+    thresh = 0.5
+    y_pred = K.cast(K.greater(y_pred, thresh), dtype='float32')
+    tp = K.sum(y_true * y_pred, axis=-1)
+
+    precision = tp / (K.sum(y_pred, axis=-1) + K.epsilon())
+    recall = tp / (K.sum(y_true, axis=-1) + K.epsilon())
+    return K.mean(2 * ((precision * recall) /
+                       (precision + recall + K.epsilon())))
 
 
 if __name__ == "__main__":

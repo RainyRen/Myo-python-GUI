@@ -286,7 +286,7 @@ class MyoListen(QThread):
                 # input_emg = np.radians(input_emg)
 
                 estimate_angle_rad = self.estimator.predict_on_batch([input_kinematic, input_emg])
-                estimate_angle_deg = np.degrees(estimate_angle_rad).ravel()
+                estimate_angle_deg = np.degrees(estimate_angle_rad).ravel().tolist()
                 self.device_data['estimate_angle'] = list(map(lambda x: round(x, 2), estimate_angle_deg))
 
                 print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')

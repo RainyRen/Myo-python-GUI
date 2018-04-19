@@ -25,7 +25,9 @@ class DataManager(object):
         self.future_time = future_time
         self.one_target = one_target
         self.degree2rad = degree2rad
+
         self.use_direction = use_direction
+        self.direction_threshold = direction_threshold
 
         self.tr_kinematic = list()
         self.tr_emg = list()
@@ -165,9 +167,9 @@ class DataManager(object):
         emg_features_mag_3d = emg_features_mag.reshape(emg_features_mag.shape[0], 16, -1, 1)
 
         if self.use_direction:
-            print("convert postion to direction")
+            # print("convert postion to direction")
             target_direction_value = np.abs(arm_angle[1:] - arm_angle[:-1])
-            target = np.where(target_direction_value > direction_threshold, 1, 0)
+            target = np.where(target_direction_value > self.direction_threshold, 1, 0)
 
         else:
             target = arm_angle[1:]
@@ -203,8 +205,8 @@ class DataManager(object):
         emg_features_samples = np.asarray(emg_features_samples)
         target_samples = np.asarray(target_samples)
 
-        if self.use_direction:
-            target_samples = to_categorical(target_samples, num_classes=3)
+        # if self.use_direction:
+        #     target_samples = to_categorical(target_samples, num_classes=3)
 
         return kinematic_samples, emg_features_samples, target_samples
 

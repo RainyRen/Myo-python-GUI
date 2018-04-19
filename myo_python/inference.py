@@ -1,5 +1,6 @@
 # coding: utf-8
 import pdb
+import argparse
 import yaml
 import math
 from pathlib import Path
@@ -7,7 +8,9 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from sklearn.metrics import r2_score, mean_absolute_error
+from keras.models import load_model
+
+from utils.data_io import DataManager
 
 # # ===== define global varibles =====
 UPPER_ARM_LEN = 32      # # unit: cm
@@ -16,18 +19,34 @@ FOREARM_LEN = 33        # # unit: cm
 # # ==================================
 
 
-class EstimatorTF(object):
-    def __init__(self):
-        pass
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode', default="test_reg", help='test_reg or test_cls')
+    parser.add_argument('--save_dir', default='./exp')
+    args = parser.parse_args()
 
-    def predict(self):
-        pass
+    # # ===== load model config from saved config file =====
+    model_path = Path(args.save_dir) / 'multi2one_cls'
+
+    with open(model_path / 'config.yml') as config_file:
+        test_config = yaml.load(config_file)
+    test_config['model_path'] = str(model_path / 'rnn_best.h5')
+
+    if args.mode == 'test_reg':
+        test_reg(test_config)
+
+    elif args.mode == 'test_cls':
+        test_cls(test_config)
+
+    else:
+        raise ValueError('No such mode, please check again')
 
 
 # # ================================================ Keras ===========================================================
-def k_test(config):
-    from utils.data_io import DataManager, angle2position
-    from keras.models import load_model
+def test_reg(config):
+    from sklearn.metrics import r2_score, mean_absolute_error
+
+    from utils.data_io import angle2position
 
     test_data_loader = DataManager(
         './data/' + str(config['fs']) + 'hz' + '/test',
@@ -135,13 +154,39 @@ def k_test(config):
     plt.show()
 
 
-if __name__ == "__main__":
-    """
-    first we have to select model path
-    """
-    model_path = Path('./exp/multi2one_stft_k_n')
-    with open(model_path / 'config.yml') as config_file:
-        test_config = yaml.load(config_file)
-    test_config['model_path'] = str(model_path / 'rnn_best.h5')
+def test_cls(config):
+    from sklearn.metrics import accuracy_score, average_precision_score, precision_recall_curve
+    from sklearn.metrics import f1_score as f1score
 
-    k_test(test_config)
+    from models.k_models import f1_score
+
+    test_data_loader = DataManager(
+        './data/' + str(config['fs']) + 'hz' + '/test',
+        separate_rate=0,
+        time_length=config['time_length'],
+        future_time=config['future_time'],
+        one_target=config['one_target'],
+        degree2rad=config['degree2rad'],
+        use_direction=True,
+    )
+    # dt = 1 / config['fs']
+
+    test_data, _ = test_data_loader.get_all_data()
+    _, ts_emg, ts_target = test_data
+
+    model = load_model(config['model_path'], custom_objects={'f1_score': f1_score})
+    result = model.predict(ts_emg, batch_size=128, verbose=1)
+
+    result = np.where(result > 0.5, 1, 0)
+
+    acc = accuracy_score(ts_target, result)
+    avg_prec = average_precision_score(ts_target, result)
+    f1 = f1score(ts_target, result, average='macro')
+
+    print('accuracy: ', acc)
+    print('average precision: ', avg_prec)
+    print('f1 score:', f1)
+
+
+if __name__ == "__main__":
+    main()
