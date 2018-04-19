@@ -26,7 +26,7 @@ def main():
     args = parser.parse_args()
 
     # # ===== load model config from saved config file =====
-    model_path = Path(args.save_dir) / 'multi2one_cls'
+    model_path = Path(args.save_dir) / 'multi2one_convlstm_stft_k'
 
     with open(model_path / 'config.yml') as config_file:
         test_config = yaml.load(config_file)
@@ -62,6 +62,7 @@ def test_reg(config):
     # train_data, test_data = data_mg.get_all_data()
     test_data, _ = test_data_loader.get_all_data()
     ts_kinematic, ts_emg, ts_target = test_data
+    ts_orbit = ts_kinematic[:, -1, :4]
 
     model = load_model(config['model_path'])
     result = model.predict([ts_kinematic, ts_emg], batch_size=128, verbose=1)
@@ -71,49 +72,46 @@ def test_reg(config):
         result = result[:, -1, :]
         ts_target = ts_target[:, -1, :]
 
+    if config['degree2rad']:
+        ts_orbit_degrees = np.degrees(ts_orbit)
+        ts_target_degrees = np.degrees(ts_target)
+        result_degrees = np.degrees(result)
+    else:
+        ts_orbit_degrees = ts_orbit
+        ts_target_degrees = ts_target
+        result_degrees = result
+
+        ts_orbit = np.radians(ts_orbit)
+        ts_target = np.radians(ts_target)
+        result = np.radians(result)
+
     # # =========================== metrics for model ===================================
     r2 = r2_score(ts_target, result)
     r2_2 = r2_score(ts_target[:, 0], result[:, 0])
     r2_5 = r2_score(ts_target[:, 1], result[:, 1])
     r2_6 = r2_score(ts_target[:, 2], result[:, 2])
     r2_7 = r2_score(ts_target[:, 3], result[:, 3])
-    print("--------- r2 score ---------")
+    print("--------- r2 score ---------\n")
     print("r2 all: {:.2f}".format(r2))
-    print("r2 for 2 axis: {:.2f}, r2 for 5 axis: {:.2f}, r2 for 7 axis {:.2f}, r2 for 7 axis {:.2f}"
+    print("r2 for 2 axis: {:.2f}, r2 for 5 axis: {:.2f}, r2 for 6 axis {:.2f}, r2 for 7 axis {:.2f}"
           .format(r2_2, r2_5, r2_6, r2_7))
     print("----------------------------")
 
-    mae = math.degrees(mean_absolute_error(ts_target, result))
-    mae_single_rad = map(mean_absolute_error, ts_target.T, result.T)
-    mae_single_degrees = list(map(math.degrees, mae_single_rad))
-    print("-------- mean absolute error ---------")
+    mae = mean_absolute_error(ts_target_degrees, result_degrees)
+    mae_single = map(mean_absolute_error, ts_target_degrees.T, result_degrees.T)
+    print("-------- mean absolute error in degrees---------\n")
     print("mae all: {:.2f}".format(mae))
-    print("2 axis mae: {:.2f}, 5 axis mae: {:.2f}, 6 axis mae: {:.2f}, 7 axis mae {:.2f}"
-          .format(*mae_single_degrees))
-    print("--------------------------------------")
+    print("2 axis mae: {:.2f}, 5 axis mae: {:.2f}, 6 axis mae: {:.2f}, 7 axis mae {:.2f}".format(*mae_single))
+    print("------------------------------------------------")
 
-    fake_result = ts_kinematic[:, -1, :4]
-    mae_fake = math.degrees(mean_absolute_error(ts_target, fake_result))
-    mae_fake_single_rad = map(mean_absolute_error, ts_target.T, fake_result.T)
-    mae_fake_single_degrees = list(map(math.degrees, mae_fake_single_rad))
-    print("-------- mean absolute error ---------")
+    fake_result_degrees = ts_orbit_degrees
+    mae_fake = mean_absolute_error(ts_target_degrees, fake_result_degrees)
+    mae_fake_single = map(mean_absolute_error, ts_target_degrees.T, fake_result_degrees.T)
+    print("-------- fake result mean absolute error in degrees ---------\n")
     print("mae all: {:.2f}".format(mae_fake))
-    print("2 axis mae: {:.2f}, 5 axis mae: {:.2f}, 6 axis mae: {:.2f}, 7 axis mae {:.2f}"
-          .format(*mae_fake_single_degrees))
-    print("--------------------------------------")
+    print("2 axis mae: {:.2f}, 5 axis mae: {:.2f}, 6 axis mae: {:.2f}, 7 axis mae {:.2f}".format(*mae_fake_single))
+    print("-------------------------------------------------------------")
 
-    ts_target_dot = np.sign((ts_target[1:] - ts_target[:-1]) / dt)
-    result_dot = np.sign((result[1:] - result[:-1]) / dt)
-    fake_result_dot = np.sign((fake_result[1:] - fake_result[:-1]) / dt)
-    mae_v = mean_absolute_error(ts_target_dot, result_dot)
-    mae_fake_v = mean_absolute_error(ts_target_dot, fake_result_dot)
-    mae_single_v = list(map(mean_absolute_error, ts_target_dot.T, result_dot.T))
-    mar_fake_single_v = list(map(mean_absolute_error, ts_target_dot.T, fake_result_dot.T))
-    print("-------- velocity mean absolute error ---------")
-    print("mae v all: {:.2f}, mae v for fake {:.2f}".format(mae_v, mae_fake_v))
-    print("2 v mae: {:.2f}, 5 v mae: {:.2f}, 6 v mae: {:.2f}, 7 v mae {:.2f}".format(*mae_single_v))
-    print("fake -- 2 v mae: {:.2f}, 5 v mae: {:.2f}, 6 v mae: {:.2f}, 7 v mae {:.2f}".format(*mar_fake_single_v))
-    print("--------------------------------------")
     pdb.set_trace()
     # # =========================================================================================
     # # ============================== plot fig for each angle ==================================
@@ -121,35 +119,35 @@ def test_reg(config):
     # # ----- plot single axis -----
     plt.figure(0)
     plt.subplot(411)
-    plt.plot(x, np.degrees(ts_target[:, 0]), 'k-')
-    plt.plot(x, np.degrees(result[:, 0]), 'r--')
+    plt.plot(x, ts_orbit_degrees[:, 0], 'g-')
+    plt.plot(x, ts_target_degrees[:, 0], 'k-')
+    plt.plot(x, result_degrees[:, 0], 'r--')
     plt.subplot(412)
-    plt.plot(x, np.degrees(ts_target[:, 1]), 'k-')
-    plt.plot(x, np.degrees(result[:, 1]), 'r--')
+    plt.plot(x, ts_orbit_degrees[:, 1], 'g-')
+    plt.plot(x, ts_target_degrees[:, 1], 'k-')
+    plt.plot(x, result_degrees[:, 1], 'r--')
     plt.subplot(413)
-    plt.plot(x, np.degrees(ts_target[:, 2]), 'k-')
-    plt.plot(x, np.degrees(result[:, 2]), 'r--')
+    plt.plot(x, ts_orbit_degrees[:, 2], 'g-')
+    plt.plot(x, ts_target_degrees[:, 2], 'k-')
+    plt.plot(x, result_degrees[:, 2], 'r--')
     plt.subplot(414)
-    plt.plot(x, np.degrees(ts_target[:, 3]), 'k-')
-    plt.plot(x, np.degrees(result[:, 3]), 'r--')
+    plt.plot(x, ts_orbit_degrees[:, 3], 'g-')
+    plt.plot(x, ts_target_degrees[:, 3], 'k-')
+    plt.plot(x, result_degrees[:, 3], 'r--')
 
     # # ----- plot 3d space -----
     # # convert degree to radius
-    if not config['degree2rad']:
-        ts_target = np.radians(ts_target[200: 300])
-        result = np.radians(result[200: 300])
-    else:
-        ts_target = ts_target[200: 300]
-        result = result[200: 300]
 
-    x_gt, y_gt, z_gt = angle2position(ts_target)
-    x_es, y_es, z_es = angle2position(result)
+    x_or, y_or, z_or = angle2position(ts_orbit[200:260])
+    x_gt, y_gt, z_gt = angle2position(ts_target[200:260])
+    x_es, y_es, z_es = angle2position(result[200:260])
 
     fig3d = plt.figure(1)
     ax = Axes3D(fig3d)
 
-    ax.plot(x_gt, y_gt, z_gt)
-    ax.plot(x_es, y_es, z_es)
+    ax.plot(x_or, y_or, z_or, 'g-')
+    ax.plot(x_gt, y_gt, z_gt, 'b-')
+    ax.plot(x_es, y_es, z_es, 'r--')
 
     plt.show()
 

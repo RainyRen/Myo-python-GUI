@@ -139,7 +139,7 @@ class DataManager(object):
         target_samples = list()
 
         data_df = pd.read_csv(file_path, skiprows=1, header=None)
-        n_sample = data_df.shape[0] - self.time_length
+        n_sample = data_df.shape[0] - self.time_length - (self.future_time - 1)
 
         # samples_pool = [(i * self.time_length, (i + 1) * self.time_length) for i in range(n_sample)]
 
