@@ -309,11 +309,18 @@ class ArmAngle2(object):
         """
         implementation of complementary filter, contain muscle deformation compensate method
         only using linear compensate method
+
+        angle_2: horizontal abduction/adduction angle
+        angle_5: shoulder flexion/extension angle
+        angle_6: external/internal angle
+        angle_7: elbow flexion/extension
+
         :param rpys:
         :param compensate_k: tuple contain four arm angle compensate value k
         :param use_filter: if true, use complementary filter
         :param float dt: sampling time
         """
+        self.init_angle = None
         self.upper_arm_bias = (0., 0., 0.)
         self.forearm_bias = (0., 0., 0.)
         self.compensate_k = compensate_k if compensate_k is not None else (0., 0., 0., 0.)
@@ -329,21 +336,25 @@ class ArmAngle2(object):
         if self.use_filter:
             self.cpl_filter_2 = Complementary(dt, self.angle_2)
             self.cpl_filter_5 = Complementary(dt, self.angle_5)
+            self.cpl_filter_6 = Complementary(dt, self.angle_6)
             self.cpl_filter_7 = Complementary(dt, self.angle_7)
 
         self.calibration(rpys)
 
-    def calibration(self, rpys):
+    def calibration(self, rpys, init_angle=(0., 0., 0., 0.)):
         """
         fast calibration on different initial point
         :param rpys: list of list contain current arm euler angle
         :return: None
         """
         self.forearm_bias, self.upper_arm_bias = rpys
+        self.init_angle = init_angle
+
         if self.use_filter:
-            self.cpl_filter_2.angle = 0
-            self.cpl_filter_5.angle = 0
-            self.cpl_filter_7.angle = 0
+            self.cpl_filter_2.angle = init_angle[0]
+            self.cpl_filter_5.angle = init_angle[1]
+            self.cpl_filter_6.angle = init_angle[2]
+            self.cpl_filter_7.angle = init_angle[3]
 
     def cal_arm_angle(self, rpys, gyr=None):
         """
@@ -353,17 +364,19 @@ class ArmAngle2(object):
         """
         forearm, upper_arm = rpys
 
-        self.angle_2 = upper_arm[2] - self.upper_arm_bias[2]
-        self.angle_5 = upper_arm[1] - self.upper_arm_bias[1]
-        self.angle_6 = upper_arm[0] - self.upper_arm_bias[0]
+        self.angle_2 = upper_arm[2] - self.upper_arm_bias[2] + self.init_angle[0]
+        self.angle_5 = upper_arm[1] - self.upper_arm_bias[1] + self.init_angle[1]
+        self.angle_6 = upper_arm[0] - self.upper_arm_bias[0] + self.init_angle[2]
 
         if self.use_filter:
             self.angle_2 = self.cpl_filter_2.get_angle(self.angle_2, gyr[1][2])
             self.angle_5 = self.cpl_filter_5.get_angle(self.angle_5, gyr[1][1])
-            self.angle_7 = self.cpl_filter_7.get_angle(forearm[1] - self.forearm_bias[1], gyr[0][1]) - self.angle_5
+            self.angle_6 = self.cpl_filter_6.get_angle(self.angle_6, gyr[1][0])
+            self.angle_7 = self.cpl_filter_7.get_angle(
+                forearm[1] - self.forearm_bias[1] + self.init_angle[3], gyr[0][1]) - self.angle_5
 
         else:
-            self.angle_7 = (forearm[1] - self.forearm_bias[1]) - self.angle_5
+            self.angle_7 = (forearm[1] - self.forearm_bias[1]) - self.angle_5 + self.init_angle[3]
 
         # # ----- calculate muscle deformation compensate -----
         self.angle_2 *= (1 + self.angle_2_cps_k)

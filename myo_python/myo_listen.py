@@ -260,7 +260,7 @@ class MyoListen(QThread):
             print('\r{}, {}, {}, {}'.format(*self.device_data['arm_angle']), end='')
 
         else:
-            self.device_data['arm_angle'] = []
+            self.device_data['arm_angle'] = [0., 0., 0., 0.]
 
         if self.estimate_signal:
             # # it must be two myo, so directly select two data
@@ -291,7 +291,7 @@ class MyoListen(QThread):
 
                 print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')
         else:
-            self.device_data['estimate_angle'] = []
+            self.device_data['estimate_angle'] = [0., 0., 0., 0.]
 
         if self.record_signal:
             save_data = [
@@ -332,9 +332,9 @@ class MyoListen(QThread):
             else:
                 self.get_arm_angle_signal = False
 
-    def arm_calibration(self):
+    def arm_calibration(self, init_angle):
         # self.arm_angle.calibration(self.device_data['orientation'])
-        self.arm_angle.calibration(self.device_data['rpy'])
+        self.arm_angle.calibration(self.device_data['rpy'], init_angle)
 
     def get_estimate_angle(self, is_get, model_path=None):
         with QMutexLocker(self.mutex):

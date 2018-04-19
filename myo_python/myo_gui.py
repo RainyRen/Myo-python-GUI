@@ -62,18 +62,20 @@ class TableWidget(QWidget):
         self.tabs = QTabWidget()
         self.tab_main = QWidget()
         self.tab_setting = QWidget()
+        self.tab_calibrate = QWidget()
         # self.tabs.resize(300, 200)
 
         # # ===== Add tabs =====
         self.tabs.addTab(self.tab_main, "Myo Control")
         self.tabs.addTab(self.tab_setting, "Advance Setting")
+        self.tabs.addTab(self.tab_calibrate, "Calibration")
 
         # # ===== Add main button =====
         self.quit_bnt = QPushButton("QUIT")
         self.quit_bnt.setIcon(QIcon(str(IMAGE_PATH / "quit.png")))
         self.quit_bnt.setStyleSheet("background-color: #EF5350")
 
-        # # ================================ Create first tab =============================================
+        # # ========================================== Create first tab ================================================
         self.myo_connect_bnt = QPushButton("Connect")
         self.myo_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
         self.myo_connect_bnt.setCheckable(True)
@@ -224,8 +226,6 @@ class TableWidget(QWidget):
         self.apply_bnt.setIcon(QIcon(str(IMAGE_PATH / 'apply.png')))
 
         # # ----- define different area layout -----
-        self.tab_setting.layout = QVBoxLayout(self)
-
         pre_process_layout = QGridLayout()
         # # run myo mode setting layout
         pre_process_layout.addWidget(self.myo_listen_radio_bnt, 0, 0)
@@ -282,16 +282,42 @@ class TableWidget(QWidget):
         choose_item_layout.addWidget(self.apply_bnt, 3, 1)
 
         # # organize layout
+        self.tab_setting.layout = QVBoxLayout(self)
         self.tab_setting.layout.addLayout(pre_process_layout)
         self.tab_setting.layout.addLayout(separate_compensate_layout)
         self.tab_setting.layout.addLayout(muscle_compensate_layout)
         self.tab_setting.layout.addLayout(separate_text_layout)
         self.tab_setting.layout.addLayout(choose_item_layout)
-        # self.tab_setting.layout.addStretch()
         self.tab_setting.setLayout(self.tab_setting.layout)
 
-        # # ==========================================================================================================
+        # # ===========================================================================================================
+        # # ========================================= Create third tab ================================================
+        self.cal_init_ha = QLineEdit("0.0")
+        self.cal_init_ha.setAlignment(Qt.AlignCenter)
+        self.cal_init_sf = QLineEdit("0.0")
+        self.cal_init_sf.setAlignment(Qt.AlignCenter)
+        self.cal_init_er = QLineEdit("0.0")
+        self.cal_init_er.setAlignment(Qt.AlignCenter)
+        self.cal_init_ef = QLineEdit("0.0")
+        self.cal_init_ef.setAlignment(Qt.AlignCenter)
 
+        # # add layout
+        cal_angle_layout = QGridLayout()
+        cal_angle_layout.addWidget(QLabel("HA Initial Angle(degrees):"), 0, 0)
+        cal_angle_layout.addWidget(self.cal_init_ha, 0, 1)
+        cal_angle_layout.addWidget(QLabel("SF Initial Angle(degrees):"), 1, 0)
+        cal_angle_layout.addWidget(self.cal_init_sf, 1, 1)
+        cal_angle_layout.addWidget(QLabel("ER Initial Angle(degrees):"), 2, 0)
+        cal_angle_layout.addWidget(self.cal_init_er, 2, 1)
+        cal_angle_layout.addWidget(QLabel("EF Initial Angle(degrees):"), 3, 0)
+        cal_angle_layout.addWidget(self.cal_init_ef, 3, 1)
+
+        # # organize layout
+        self.tab_calibrate.layout = QVBoxLayout(self)
+        self.tab_calibrate.layout.addLayout(cal_angle_layout)
+        self.tab_calibrate.setLayout(self.tab_calibrate.layout)
+
+        # # ===========================================================================================================
         # # ===== Add tabs to widget =====
         self.layout.addWidget(self.tabs)
         self.layout.addWidget(self.quit_bnt)
@@ -454,7 +480,12 @@ class TableWidget(QWidget):
             self.tcp_send_bnt.setIcon(QIcon(str(IMAGE_PATH / "send.png")))
 
     def arm_calibration(self):
-        self.myo_dongle.arm_calibration()
+        init_ha = float(self.cal_init_ha.text())
+        init_sf = float(self.cal_init_sf.text())
+        init_er = float(self.cal_init_er.text())
+        init_ef = float(self.cal_init_ef.text())
+        init_angle = (init_ha, init_sf, init_er, init_ef)
+        self.myo_dongle.arm_calibration(init_angle)
 
     def arm_angle(self):
         if self.arm_angle_bnt.isChecked():
