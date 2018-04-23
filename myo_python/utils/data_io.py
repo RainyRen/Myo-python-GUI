@@ -38,7 +38,7 @@ class DataManager(object):
         self.val_target = list()
 
         self.separate_rate = separate_rate
-        all_file_list = list(self.file_path.glob('jl_*.csv'))
+        all_file_list = list(self.file_path.glob('jl_new*.csv'))
         print("found files: ", all_file_list)
 
         all_file_num = len(all_file_list)
@@ -46,21 +46,23 @@ class DataManager(object):
         self.tr_file_list = all_file_list[val_file_num:]
         self.val_file_list = all_file_list[:val_file_num]
 
-    def get_all_data(self):
+    def get_all_data(self, get_emg_raw=False, emg_3d=True):
         """
         get all training and validation data, this method is for keras training,
         not appropriate for tensorflow
+        :param bool get_emg_raw:
+        :param bool emg_3d:
         :return:
         """
         # # extract data from different files and append to list
         for current_file in self.tr_file_list:
-            kinematic, emg, target = self._load_data(current_file)
+            kinematic, emg, target = self._load_data(current_file, get_emg_raw=get_emg_raw, emg_3d=emg_3d)
             self.tr_kinematic.append(kinematic)
             self.tr_emg.append(emg)
             self.tr_target.append(target)
 
         for current_file in self.val_file_list:
-            kinematic, emg, target = self._load_data(current_file)
+            kinematic, emg, target = self._load_data(current_file, get_emg_raw=get_emg_raw, emg_3d=emg_3d)
             self.val_kinematic.append(kinematic)
             self.val_emg.append(emg)
             self.val_target.append(target)
@@ -125,16 +127,18 @@ class DataManager(object):
 
                 yield tr_batch, val_batch
 
-    def _load_data(self, file_path):
+    def _load_data(self, file_path, get_emg_raw=False, emg_3d=True):
         """
         internal use function, for each file get data we need
         return in nd_array form
+        :param bool get_emg_raw:
+        :param bool emg_3d:
         :return:
         """
         arm_angle_samples = list()
         gyro_samples = list()
         acc_samples = list()
-        emg_samples = list()
+        emg_raw_samples = list()
         emg_features_samples = list()
         target_samples = list()
 
@@ -152,6 +156,7 @@ class DataManager(object):
 
         if self.degree2rad:
             arm_angle = np.radians(arm_angle)
+            gyro = np.radians(gyro)
 
         # # combine complex value as a image, shape of (samples, channels, frequence band, real or imag)
         emg_features_3d = np.concatenate(
@@ -163,8 +168,10 @@ class DataManager(object):
         emg_features_complex = emg_features_real + 1j * emg_features_imag
         # # convert complex to magnitude and all channels are flattened to one row
         emg_features_mag = np.abs(emg_features_complex)
-        # # reshape magnitude to 2d format, shape of (samples, channels, frequence band)
-        emg_features_mag_3d = emg_features_mag.reshape(emg_features_mag.shape[0], 16, -1, 1)
+
+        if emg_3d:
+            # # reshape magnitude to 2d format, shape of (samples, channels, frequence band)
+            emg_features_mag = emg_features_mag.reshape(emg_features_mag.shape[0], 16, -1, 1)
 
         if self.use_direction:
             # print("convert postion to direction")
@@ -178,12 +185,12 @@ class DataManager(object):
             arm_angle_samples.append(arm_angle[i:i + self.time_length])
             gyro_samples.append(gyro[i:i + self.time_length])
             acc_samples.append(acc[i:i + self.time_length])
-            emg_samples.append(emg[i:i + self.time_length])
+            emg_raw_samples.append(emg[i:i + self.time_length])
             # emg_features_samples.append(
             #     np.hstack(
             #         (emg_features_real[i:i + self.time_length], emg_features_imag[i:i + self.time_length]))
             # )
-            emg_features_samples.append(emg_features_mag_3d[i:i + self.time_length])
+            emg_features_samples.append(emg_features_mag[i:i + self.time_length])
 
             # # if we do regression, we need get next time step position as our labels
             if self.one_target:
@@ -201,14 +208,17 @@ class DataManager(object):
 
         # # merge relative information
         kinematic_samples = np.concatenate((arm_angle_samples, gyro_samples, acc_samples), axis=-1)
-        emg_samples = np.asarray(emg_samples)
+        emg_raw_samples = np.asarray(emg_raw_samples)
         emg_features_samples = np.asarray(emg_features_samples)
         target_samples = np.asarray(target_samples)
 
         # if self.use_direction:
         #     target_samples = to_categorical(target_samples, num_classes=3)
 
-        return kinematic_samples, emg_features_samples, target_samples
+        emg_samples = emg_raw_samples if get_emg_raw else emg_features_samples
+
+
+        return kinematic_samples, emg_samples, target_samples
 
 
 # # ====================================== functions ===================================================================

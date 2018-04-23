@@ -19,7 +19,7 @@ CONFIG_PATH = ROOT_PATH / "config"
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', default="train_reg", help='train_reg or train_cls')
+    parser.add_argument('--mode', default="train_reg", help='train_reg or train_cls or train_trad')
     parser.add_argument('--save_dir', default='./exp')
     args = parser.parse_args()
 
@@ -32,6 +32,9 @@ def main():
 
     elif args.mode == 'train_cls':
         train_cls(args, train_config)
+
+    elif args.mode == 'train_trad':
+        train_trad(args, train_config)
 
     else:
         raise ValueError('No such mode, please check again')
@@ -91,12 +94,14 @@ def train_reg(args, train_config):
         mode='min'
     )
 
+    save_history = k_models.DumpHistory(str(save_folder / 'logs.csv'))
+
     model.fit(
         x=[tr_kinematic, tr_emg], y=tr_target,
         validation_data=([val_kinematic, val_emg], val_target),
         batch_size=train_config['batch_size'],
         epochs=train_config['epochs'],
-        callbacks=[checkpoint],
+        callbacks=[checkpoint, save_history],
         shuffle=False
     )
 
@@ -171,14 +176,20 @@ def train_cls(args, train_config):
         mode='min'
     )
 
+    save_history = k_models.DumpHistory(str(save_folder / 'logs.csv'))
+
     model.fit(
         x=tr_emg, y=tr_target,
         validation_data=(val_emg, val_target),
         batch_size=train_config['batch_size'],
         epochs=train_config['epochs'],
-        callbacks=[checkpoint],
+        callbacks=[checkpoint, save_history],
         shuffle=False
     )
+
+
+def train_trad(args, train_config):
+    pass
 
 
 if __name__ == "__main__":

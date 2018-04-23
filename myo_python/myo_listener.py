@@ -191,7 +191,13 @@ class Listener(myo.DeviceListener):
     @property
     def get_rpy(self):
         with self.lock:
-            return [list(map(math.degrees, quaternion.rpy)) for quaternion in self.orientation]
+            # pitch_list = [math.degrees(math.atan2(-acc[0], math.sqrt(acc[1] ** 2 + acc[2] ** 2)))
+            #               for acc in self.acceleration]
+            rpy_list = [list(map(math.degrees, quaternion.rpy)) for quaternion in self.orientation]
+            # rpy_list[0][1] = pitch_list[0]
+            # rpy_list[1][1] = pitch_list[1]
+
+            return rpy_list
 
     @property
     def get_acceleration(self):

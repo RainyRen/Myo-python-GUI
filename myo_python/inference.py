@@ -16,6 +16,7 @@ from utils.data_io import DataManager
 UPPER_ARM_LEN = 32      # # unit: cm
 FOREARM_LEN = 33        # # unit: cm
 
+MODEL_DIR_NAME = "multi2one_stft_k_f1"
 # # ==================================
 
 
@@ -26,7 +27,7 @@ def main():
     args = parser.parse_args()
 
     # # ===== load model config from saved config file =====
-    model_path = Path(args.save_dir) / 'multi2one_convlstm_stft_k'
+    model_path = Path(args.save_dir) / MODEL_DIR_NAME
 
     with open(model_path / 'config.yml') as config_file:
         test_config = yaml.load(config_file)
@@ -91,7 +92,7 @@ def test_reg(config):
     r2_5 = r2_score(ts_target[:, 1], result[:, 1])
     r2_6 = r2_score(ts_target[:, 2], result[:, 2])
     r2_7 = r2_score(ts_target[:, 3], result[:, 3])
-    print("--------- r2 score ---------\n")
+    print("\n--------- r2 score ---------")
     print("r2 all: {:.2f}".format(r2))
     print("r2 for 2 axis: {:.2f}, r2 for 5 axis: {:.2f}, r2 for 6 axis {:.2f}, r2 for 7 axis {:.2f}"
           .format(r2_2, r2_5, r2_6, r2_7))
@@ -99,7 +100,7 @@ def test_reg(config):
 
     mae = mean_absolute_error(ts_target_degrees, result_degrees)
     mae_single = map(mean_absolute_error, ts_target_degrees.T, result_degrees.T)
-    print("-------- mean absolute error in degrees---------\n")
+    print("\n-------- mean absolute error in degrees---------")
     print("mae all: {:.2f}".format(mae))
     print("2 axis mae: {:.2f}, 5 axis mae: {:.2f}, 6 axis mae: {:.2f}, 7 axis mae {:.2f}".format(*mae_single))
     print("------------------------------------------------")
@@ -107,7 +108,7 @@ def test_reg(config):
     fake_result_degrees = ts_orbit_degrees
     mae_fake = mean_absolute_error(ts_target_degrees, fake_result_degrees)
     mae_fake_single = map(mean_absolute_error, ts_target_degrees.T, fake_result_degrees.T)
-    print("-------- fake result mean absolute error in degrees ---------\n")
+    print("\n-------- fake result mean absolute error in degrees ---------")
     print("mae all: {:.2f}".format(mae_fake))
     print("2 axis mae: {:.2f}, 5 axis mae: {:.2f}, 6 axis mae: {:.2f}, 7 axis mae {:.2f}".format(*mae_fake_single))
     print("-------------------------------------------------------------")
@@ -115,25 +116,27 @@ def test_reg(config):
     pdb.set_trace()
     # # =========================================================================================
     # # ============================== plot fig for each angle ==================================
-    x = [i * (1 / config['time_length']) for i in range(ts_target.shape[0])]
+    # show_interval = 200
+    show_interval = ts_target.shape[0]
+    x = [i * (1 / config['time_length']) for i in range(show_interval)]
     # # ----- plot single axis -----
     plt.figure(0)
     plt.subplot(411)
-    plt.plot(x, ts_orbit_degrees[:, 0], 'g-')
-    plt.plot(x, ts_target_degrees[:, 0], 'k-')
-    plt.plot(x, result_degrees[:, 0], 'r--')
+    plt.plot(x, ts_orbit_degrees[:show_interval, 0], 'g-')
+    plt.plot(x, ts_target_degrees[:show_interval, 0], 'k-')
+    plt.plot(x, result_degrees[:show_interval, 0], 'r--')
     plt.subplot(412)
-    plt.plot(x, ts_orbit_degrees[:, 1], 'g-')
-    plt.plot(x, ts_target_degrees[:, 1], 'k-')
-    plt.plot(x, result_degrees[:, 1], 'r--')
+    plt.plot(x, ts_orbit_degrees[:show_interval, 1], 'g-')
+    plt.plot(x, ts_target_degrees[:show_interval, 1], 'k-')
+    plt.plot(x, result_degrees[:show_interval, 1], 'r--')
     plt.subplot(413)
-    plt.plot(x, ts_orbit_degrees[:, 2], 'g-')
-    plt.plot(x, ts_target_degrees[:, 2], 'k-')
-    plt.plot(x, result_degrees[:, 2], 'r--')
+    plt.plot(x, ts_orbit_degrees[:show_interval, 2], 'g-')
+    plt.plot(x, ts_target_degrees[:show_interval, 2], 'k-')
+    plt.plot(x, result_degrees[:show_interval, 2], 'r--')
     plt.subplot(414)
-    plt.plot(x, ts_orbit_degrees[:, 3], 'g-')
-    plt.plot(x, ts_target_degrees[:, 3], 'k-')
-    plt.plot(x, result_degrees[:, 3], 'r--')
+    plt.plot(x, ts_orbit_degrees[:show_interval, 3], 'g-')
+    plt.plot(x, ts_target_degrees[:show_interval, 3], 'k-')
+    plt.plot(x, result_degrees[:show_interval, 3], 'r--')
 
     # # ----- plot 3d space -----
     # # convert degree to radius

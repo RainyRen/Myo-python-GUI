@@ -267,10 +267,11 @@ class MyoListen(QThread):
             # arm_angle = self.device_data['arm_angle']
             arm_angle = list(map(math.radians, self.device_data['arm_angle']))
             gyr = self.device_data['gyroscope'][0] + self.device_data['gyroscope'][1]
-            gyr = list(map(lambda x: round(x, 3), gyr))
+            gyr = list(map(math.radians, gyr))
+            # gyr = list(map(lambda x: round(x, 3), gyr))
             acc = self.device_data['acceleration'][0] + self.device_data['acceleration'][1]
-            acc = list(map(lambda x: round(x, 3), acc))
-            emg_features_mag_3d = np.abs(emg_features).round(6)
+            # acc = list(map(lambda x: round(x, 3), acc))
+            emg_features_mag_3d = np.abs(emg_features)
 
             self._kinematic_window.append(arm_angle + gyr + acc)
             # self._emg_window.append(self.device_data['emg'][0] + self.device_data['emg'][1])

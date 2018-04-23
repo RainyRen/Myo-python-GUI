@@ -417,17 +417,15 @@ class DumpHistory(Callback):
         super(self.__class__, self).__init__()
         self.file_path = file_path
         with open(file_path, 'w') as log_file:
-            log_file.write('epoch,loss,acc,val_loss,val_acc,e_dist\n')
+            log_file.write('epoch,loss,val_loss\n')
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
         with open(self.file_path, 'a') as log_file:
-            log = "{0},{1},{2},{3},{4}\n".format(
+            log = "{0},{1},{2}\n".format(
                 epoch,
                 logs.get('loss'),
-                logs.get('acc'),
                 logs.get('val_loss'),
-                logs.get('val_acc'),
             )
             log_file.write(log)
 
