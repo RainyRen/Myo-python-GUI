@@ -6,7 +6,7 @@ filter_order: 4
 ha_compensate_k: 0.18
 imu_filter: true
 low_cutoff: 2
-model_path: multi2one_stft_k_n
+model_path: multi2one_stft_k_f1
 moving_ave: true
 req_mode: false
 send_fs: 20

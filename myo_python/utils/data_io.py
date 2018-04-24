@@ -131,8 +131,8 @@ class DataManager(object):
         """
         internal use function, for each file get data we need
         return in nd_array form
-        :param bool get_emg_raw:
-        :param bool emg_3d:
+        :param bool get_emg_raw: get emg raw data or time-frequency features
+        :param bool emg_3d: ignored if get_emg_raw is True, reshape emg time-frequency features to multi-dim
         :return:
         """
         arm_angle_samples = list()
