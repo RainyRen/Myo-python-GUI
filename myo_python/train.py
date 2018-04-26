@@ -25,18 +25,21 @@ def main():
 
     # # ===== load config from config file =====
     if args.mode == 'train_reg':
+        print('training regression model')
         with open(str(CONFIG_PATH / 'train_keras.yml'), 'r') as config_file:
             train_config = yaml.load(config_file)
 
         train_reg(args, train_config)
 
     elif args.mode == 'train_cls':
+        print('training classification model')
         with open(str(CONFIG_PATH / 'train_keras.yml'), 'r') as config_file:
             train_config = yaml.load(config_file)
 
         train_cls(args, train_config)
 
     elif args.mode == 'train_trad':
+        print('training traditional regression model')
         with open(str(CONFIG_PATH / 'train_trad.yml'), 'r') as config_file:
             train_config = yaml.load(config_file)
 
@@ -195,10 +198,13 @@ def train_cls(args, train_config):
 
 
 def train_trad(args, train_config):
+    import math
+
     from sklearn.linear_model import LinearRegression
     from sklearn.svm import SVR
     from sklearn.neighbors import KNeighborsRegressor
     from sklearn.externals import joblib
+    from sklearn.metrics import mean_absolute_error
 
     save_folder = Path(args.save_dir) / train_config['exp_folder']
 
@@ -241,8 +247,62 @@ def train_trad(args, train_config):
     val_x = np.hstack((val_kinematic[:, -1, :], val_emg[:, -1, :]))
     val_y = val_target
 
-    svr = SVR(C=1.0, epsilon=0.2, kernel='rbf', tol=1e-4)
-    lin = LinearRegression(n_jobs=1)
+    # # ===== obtain models =====
+    lin = [LinearRegression(n_jobs=2) for _ in range(4)]
+    svr = [SVR(C=1.0, epsilon=0.2, kernel='rbf', tol=1e-4) for _ in range(4)]
+    knr = [KNeighborsRegressor(n_neighbors=5, weights='uniform', algorithm='auto', leaf_size=30, n_jobs=2)
+           for _ in range(4)]
+
+    # # ===== training linear models and evaluate =====
+    select_col = list(range(3, train_x.shape[-1]))
+
+    print('\ntraining linear mode...')
+    lin_score = list()
+    lin_mae = list()
+    for i in range(4):
+        select_col[0] = i
+        lin[i].fit(train_x[:, select_col], train_y[:, i])
+
+        lin_score.append(lin[i].score(val_x[:, select_col], val_y[:, i]))
+
+        lin_val_y = lin[i].predict(val_x[:, select_col])
+        lin_mae.append(math.degrees(mean_absolute_error(val_y[:, i], lin_val_y)))
+
+        print("linear model {} axis -- mae: {} -- R2: {}".format(i, lin_mae[i], lin_score[i]))
+
+    joblib.dump(lin, str(save_folder / 'lin_model.p'))
+
+    # # ===== training SVM models and evaluate =====
+    print('\ntraining SVR model')
+    svr_score = list()
+    svr_mae = list()
+    for i in range(4):
+        select_col[0] = i
+        svr[i].fit(train_x[:, select_col], train_y[:, i])
+
+        svr_score.append(svr[i].score(val_x[:, select_col], val_y[:, i]))
+
+        svr_val_y = svr[i].predict(val_x[:, select_col])
+        svr_mae.append(math.degrees(mean_absolute_error(val_y[:, i], svr_val_y)))
+        print("SVR model {} axis -- mae: {} -- R2: {}".format(i, svr_mae[i], svr_score[i]))
+
+    joblib.dump(svr, str(save_folder / 'svr_model.p'))
+
+    # # ===== training KNN models and evaluate =====
+    print('\ntraining KNR model')
+    knr_score = list()
+    knr_mae = list()
+    for i in range(4):
+        select_col[0] = i
+        knr[i].fit(train_x[:, select_col], train_y[:, i])
+
+        knr_score.append(knr[i].score(val_x[:, select_col], val_y[:, i]))
+
+        knr_val_y = knr[i].predict(val_x[:, select_col])
+        knr_mae.append(math.degrees(mean_absolute_error(val_y[:, i], knr_val_y)))
+        print("KNR model {} axis -- mae: {} -- R2: {}".format(i, knr_mae[i], knr_score[i]))
+
+    joblib.dump(knr, str(save_folder / 'knr_model.p'))
 
 
 if __name__ == "__main__":
