@@ -91,8 +91,8 @@ def test_reg(config):
     _evaluate(ts_target_degrees, result_degrees, ts_orbit_degrees)
     pdb.set_trace()
 
-    _plot_single_fig(ts_target_degrees, result_degrees, ts_orbit_degrees, dt)
-    _plot_3d_fig(ts_target, result, ts_orbit)
+    _plot_single_fig(ts_target_degrees[-800:-400], result_degrees[-800:-400], ts_orbit_degrees[-800:-400], dt)
+    _plot_3d_fig(ts_target[200:260], result[200:260], ts_orbit[200:260])
 
 
 def test_cls(config):
@@ -175,8 +175,8 @@ def test_trad(config):
     _evaluate(ts_target_degrees, result_degrees, ts_orbit_degrees)
     pdb.set_trace()
 
-    _plot_single_fig(ts_target_degrees, result_degrees, ts_orbit_degrees, dt=dt)
-    _plot_3d_fig(ts_target, result, ts_orbit)
+    _plot_single_fig(ts_target_degrees[-800:-400], result_degrees[-800:-400], ts_orbit_degrees[-800:-400], dt=dt)
+    _plot_3d_fig(ts_target[200:260], result[200:260], ts_orbit[200:260])
 
 
 def _evaluate(target_deg, estimate_deg, orbit_deg):
@@ -232,9 +232,9 @@ def _plot_single_fig(target_deg, estimate_deg, orbit_deg, dt=0.05):
 
 
 def _plot_3d_fig(target_rad, estimate_rad, orbit_rad):
-    x_gt, y_gt, z_gt = angle2position(target_rad[200:260])
-    x_es, y_es, z_es = angle2position(estimate_rad[200:260])
-    x_or, y_or, z_or = angle2position(orbit_rad[200:260])
+    x_gt, y_gt, z_gt = angle2position(target_rad)
+    x_es, y_es, z_es = angle2position(estimate_rad)
+    x_or, y_or, z_or = angle2position(orbit_rad)
 
     fig3d = plt.figure(1)
     ax = Axes3D(fig3d)

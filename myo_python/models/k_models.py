@@ -10,7 +10,7 @@ from keras.layers import (Input, Concatenate,
                           LSTM, ConvLSTM2D,
                           GRU,
                           Activation)
-# from keras.optimizers import Adam
+from keras.optimizers import Adam
 from keras.callbacks import Callback
 
 
@@ -186,6 +186,8 @@ def multi2one_stft(model_config, inference=False):
     input_emg = Input(shape=(model_config['time_length'], 16, 10, 1))
 
     # # define structures
+    embed = TimeDistributed(Dense(64, activation=None))(input_kinematic)
+
     cnn_1 = TimeDistributed(
         Conv2D(
             16,
@@ -214,16 +216,25 @@ def multi2one_stft(model_config, inference=False):
             activation='relu',
             strides=1))(max_pool_1)
 
-    max_pool_2 = TimeDistributed(MaxPooling2D(pool_size=(2, 1)))(cnn_3)
-
     cnn_4 = TimeDistributed(
         Conv2D(
-            64,
+            32,
             3,
             data_format="channels_first",
             padding='same',
             activation='relu',
-            strides=1))(max_pool_2)
+            strides=1))(cnn_3)
+
+    max_pool_2 = TimeDistributed(MaxPooling2D(pool_size=(2, 1)))(cnn_4)
+
+    # cnn_4 = TimeDistributed(
+    #     Conv2D(
+    #         64,
+    #         3,
+    #         data_format="channels_first",
+    #         padding='same',
+    #         activation='relu',
+    #         strides=1))(max_pool_2)
 
     # flatten = TimeDistributed(Flatten())(cnn_4)
 
@@ -231,7 +242,7 @@ def multi2one_stft(model_config, inference=False):
         64,
         dropout=0.1,
         return_sequences=False,
-        stateful=False)(input_kinematic)
+        stateful=False)(embed)
     # emg_rnn_cell = LSTM(
     #     256,
     #     dropout=0.3,
@@ -242,27 +253,31 @@ def multi2one_stft(model_config, inference=False):
         (3, 1),  # # kernel size
         strides=(1, 1),
         padding='same',
-        dropout=0.2,
+        dropout=0.1,
         data_format='channels_first',
         dilation_rate=(1, 1),
         return_sequences=False,
-        stateful=False)(cnn_4)
+        stateful=False)(max_pool_2)
 
     emg_rnn_cell = Flatten()(emg_rnn_cell)
 
-    merge_data = Concatenate()([kinematic_rnn_cell, emg_rnn_cell])
+    emg_projection = Dense(64, activation='relu')(emg_rnn_cell)
+    kinematic_projection = Dense(64, activation='linear')(kinematic_rnn_cell)
 
-    hidden_1 = Dense(hidden_1_neurons, activation='selu')(merge_data)
-    hidden_1 = Dropout(0.4)(hidden_1)
+    merge_data = Concatenate()([kinematic_projection, emg_projection])
 
-    hidden_2 = Dense(hidden_2_neurons, activation='selu')(hidden_1)
-    hidden_2 = Dropout(0.4)(hidden_2)
+    hidden_1 = Dense(hidden_1_neurons, activation='linear')(merge_data)
+    hidden_1 = Dropout(0.2)(hidden_1)
+
+    hidden_2 = Dense(hidden_2_neurons, activation='linear')(hidden_1)
+    hidden_2 = Dropout(0.2)(hidden_2)
 
     output = Dense(4, activation=None)(hidden_2)
 
     model = Model([input_kinematic, input_emg], output)
     model.summary()
-    model.compile(optimizer='adam', loss='mean_absolute_error', metrics=['mae'])
+    adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=1e-6, amsgrad=True)
+    model.compile(optimizer=adam, loss='mean_absolute_error', metrics=['mae'])
 
     return model
 
