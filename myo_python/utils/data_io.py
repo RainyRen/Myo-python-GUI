@@ -38,7 +38,7 @@ class DataManager(object):
         self.val_target = list()
 
         self.separate_rate = separate_rate
-        all_file_list = list(self.file_path.glob('jl_new*.csv'))
+        all_file_list = list(self.file_path.glob('*.csv'))
         print("found files: ", all_file_list)
 
         all_file_num = len(all_file_list)
@@ -101,7 +101,7 @@ class DataManager(object):
 
         return tr, val
 
-    def data_generator(self, batch_size=32, less_memory=False):
+    def data_generator(self, get_emg_raw=False, emg_3d=False, batch_size=32, shuffle=False, less_memory=False):
         """
         this is design for tensorflow training
         :return:
@@ -111,14 +111,15 @@ class DataManager(object):
             val_file_cycle = cycle(self.val_file_list)
             return
         else:
-            tr_data, val_data = self.get_all_data()
+            tr_data, val_data = self.get_all_data(get_emg_raw=get_emg_raw, emg_3d=emg_3d)
 
         while True:
             samples_num = tr_data[0].shape[0]
             n_batch = samples_num // batch_size
             indices_pool = [(i * batch_size, (i + 1) * batch_size) for i in range(n_batch)]
+            indices_order = np.random.permutation(n_batch) if shuffle else range(n_batch)
 
-            for index in range(n_batch):
+            for index in indices_order:
                 split_pair = indices_pool[index]
                 s, e = split_pair
 

@@ -57,12 +57,17 @@ class NTMOneShotLearningModel:
     def __init__(self, args):
         args.output_dim = 4
 
-        self.x_image = tf.placeholder(dtype=tf.float32,
-                                      shape=[args.batch_size, args.seq_length, args.image_width * args.image_height])
-        self.x_label = tf.placeholder(dtype=tf.float32,
-                                      shape=[args.batch_size, args.seq_length, args.output_dim])
-        self.y = tf.placeholder(dtype=tf.float32,
-                                shape=[args.batch_size, args.seq_length, args.output_dim])
+        self.x = tf.placeholder(
+            dtype=tf.float32,
+            shape=[args.batch_size, args.seq_length, 176]
+        )
+        self.x_label = tf.placeholder(
+            dtype=tf.float32,
+            shape=[args.batch_size, args.seq_length, args.output_dim]
+        )
+        self.y = tf.placeholder(
+            dtype=tf.float32,
+            shape=[args.batch_size, args.seq_length, args.output_dim])
 
         if args.model == 'LSTM':
             def rnn_cell(rnn_size):
@@ -91,7 +96,7 @@ class NTMOneShotLearningModel:
         self.state_list = [state]   # For debugging
         self.o = []
         for t in range(args.seq_length):
-            output, state = cell(tf.concat([self.x_image[:, t, :], self.x_label[:, t, :]], axis=1), state)
+            output, state = cell(tf.concat([self.x[:, t, :], self.x_label[:, t, :]], axis=1), state)
             # output, state = cell(self.y[:, t, :], state)
             with tf.variable_scope("o2o", reuse=(t > 0)):
                 o2o_w = tf.get_variable('o2o_w', [output.get_shape()[1], args.output_dim],
@@ -109,9 +114,10 @@ class NTMOneShotLearningModel:
 
         eps = 1e-8
         # cross entropy function
-        self.learning_loss = -tf.reduce_mean(tf.reduce_sum(self.y * tf.log(self.o + eps), axis=[1, 2]))
+        # self.learning_loss = -tf.reduce_mean(tf.reduce_sum(self.y * tf.log(self.o + eps), axis=[1, 2]))
+        self.learning_loss = tf.loss.mean_squared_error(self.y, self.o)
 
-        self.o = tf.reshape(self.o, shape=[args.batch_size, args.seq_length, -1])
+        # self.o = tf.reshape(self.o, shape=[args.batch_size, args.seq_length, -1])
         self.learning_loss_summary = tf.summary.scalar('learning_loss', self.learning_loss)
 
         with tf.variable_scope('optimizer'):
