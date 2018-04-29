@@ -17,7 +17,7 @@ from utils.data_io import DataManager, angle2position
 UPPER_ARM_LEN = 32      # # unit: cm
 FOREARM_LEN = 33        # # unit: cm
 
-MODEL_DIR_NAME = "traditional_f4"
+MODEL_DIR_NAME = "JLW_stft_f4_L2"
 # # ==================================
 
 

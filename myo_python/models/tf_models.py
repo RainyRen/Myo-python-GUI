@@ -74,18 +74,18 @@ class NTMOneShotLearningModel:
                 return tf.nn.rnn_cell.BasicLSTMCell(rnn_size)
             cell = tf.nn.rnn_cell.MultiRNNCell([rnn_cell(args.rnn_size) for _ in range(args.rnn_num_layers)])
         elif args.model == 'NTM':
-            import ntm.ntm_cell as ntm_cell
+            from .ntm import ntm_cell as ntm_cell
             cell = ntm_cell.NTMCell(args.rnn_size, args.memory_size, args.memory_vector_dim,
                                     read_head_num=args.read_head_num,
                                     write_head_num=args.write_head_num,
                                     addressing_mode='content_and_location',
                                     output_dim=args.output_dim)
         elif args.model == 'MANN':
-            import ntm.mann_cell as mann_cell
+            from .ntm import mann_cell as mann_cell
             cell = mann_cell.MANNCell(args.rnn_size, args.memory_size, args.memory_vector_dim,
                                       head_num=args.read_head_num)
         elif args.model == 'MANN2':
-            import ntm.mann_cell_2 as mann_cell
+            from .ntm import mann_cell_2 as mann_cell
             cell = mann_cell.MANNCell(args.rnn_size, args.memory_size, args.memory_vector_dim,
                                       head_num=args.read_head_num)
 
@@ -115,7 +115,7 @@ class NTMOneShotLearningModel:
         eps = 1e-8
         # cross entropy function
         # self.learning_loss = -tf.reduce_mean(tf.reduce_sum(self.y * tf.log(self.o + eps), axis=[1, 2]))
-        self.learning_loss = tf.loss.mean_squared_error(self.y, self.o)
+        self.learning_loss = tf.losses.mean_squared_error(self.y, self.o)
 
         # self.o = tf.reshape(self.o, shape=[args.batch_size, args.seq_length, -1])
         self.learning_loss_summary = tf.summary.scalar('learning_loss', self.learning_loss)

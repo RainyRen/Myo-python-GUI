@@ -7,8 +7,9 @@ from pathlib import Path
 import numpy as np
 import tensorflow as tf
 from tensorflow.python import debug as tf_debug
+from sklearn.metrics import mean_absolute_error
 
-from utils.data_io import DataManager
+from utils import data_io
 from models.tf_models import NTMOneShotLearningModel
 
 # # ===== global parameters =====
@@ -57,9 +58,12 @@ def train_tf_reg(args):
     # # ===== obtain saving folder =====
     save_folder = Path(args.save_dir)
 
+    # # ===== obtain model =====
+    model = NTMOneShotLearningModel(args)
+
     # # ===== get pre-processed data =====
     train_data_loader = data_io.DataManager(
-        './data/' + str(train_config['fs']) + 'hz' + '/train',
+        './data/20hz/train',
         separate_rate=0.,
         time_length=args.seq_length,
         future_time=args.future_time,
@@ -68,7 +72,7 @@ def train_tf_reg(args):
         use_direction=False
     )
     val_data_loader = data_io.DataManager(
-        './data/' + str(train_config['fs']) + 'hz' + '/val',
+        './data/20hz/val',
         separate_rate=0.,
         time_length=args.seq_length,
         future_time=args.future_time,
@@ -91,9 +95,6 @@ def train_tf_reg(args):
     with open(str(save_folder / 'config.yml'), 'w') as write_file:
         yaml.dump(vars(args), write_file, default_flow_style=False)
 
-    # # ===== obtain model =====
-    model = NTMOneShotLearningModel(args)
-
     with tf.Session() as sess:
         if args.debug:
             sess = tf_debug.LocalCLIDebugWrapperSession(sess)
@@ -111,26 +112,31 @@ def train_tf_reg(args):
 
         for b in range(args.num_epoches):
             # # ---------- Train ----------
-            tr_kinematic, tr_emg, tr_target = next(tr_data_generator)
+            tr_data, _ = next(tr_data_generator)
+            tr_kinematic, tr_emg, tr_target = tr_data
             x = np.concatenate((tr_kinematic, tr_emg), axis=-1)
-            x_label = np.concatenate([np.zeros(shape=[batch_size, 1, 4]), tr_target[:, :-1, :]], axis=1)
+            x_label = np.concatenate([np.zeros(shape=[args.batch_size, 1, 4]), tr_target[:, :-1, :]], axis=1)
             y = tr_target
 
-            feed_dict = {model.x: , model.x_label: x_label, model.y: y}
+            feed_dict = {model.x: x, model.x_label: x_label, model.y: y}
             sess.run(model.train_op, feed_dict=feed_dict)
 
             # # --------------------------------
             # # ---------- Test ---------
             if b % 100 == 0:
-                val_kinematic, val_emg, val_target = next(val_data_generator)
+                val_data, _ = next(val_data_generator)
+                val_kinematic, val_emg, val_target = val_data
                 x = np.concatenate((tr_kinematic, tr_emg), axis=-1)
-                x_label = np.concatenate([np.zeros(shape=[batch_size, 1, 4]), tr_target[:, :-1, :]], axis=1)
+                x_label = np.concatenate([np.zeros(shape=[args.batch_size, 1, 4]), tr_target[:, :-1, :]], axis=1)
                 y = tr_target
 
-                feed_dict = {model.x_image: x_image, model.x_label: x_label, model.y: y}
+                feed_dict = {model.x: x, model.x_label: x_label, model.y: y}
                 output, learning_loss = sess.run([model.o, model.learning_loss], feed_dict=feed_dict)
                 merged_summary = sess.run(model.learning_loss_summary, feed_dict=feed_dict)
                 train_writer.add_summary(merged_summary, b)
+
+                mae = mean_absolute_error(y[:, -1, :], output[:, -1, :])
+                print('episode: {} -- loss: {} -- mae: {}'.format(b, learning_loss, mae))
 
             # # --------------------------------
             # # ---------- Save model ----------

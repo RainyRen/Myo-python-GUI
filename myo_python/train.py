@@ -5,6 +5,7 @@ import yaml
 from pathlib import Path
 
 import numpy as np
+from keras.models import load_model
 from keras.callbacks import ModelCheckpoint
 
 from utils import data_io
@@ -20,28 +21,41 @@ CONFIG_PATH = ROOT_PATH / "config"
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default="train_reg", help='train_reg or train_cls or train_trad')
+    parser.add_argument('--fine_tune', default=None, help='JLW_stft_f4_L2')
     parser.add_argument('--save_dir', default='./exp')
     args = parser.parse_args()
 
     # # ===== load config from config file =====
     if args.mode == 'train_reg':
-        print('training regression model')
-        with open(str(CONFIG_PATH / 'train_keras.yml'), 'r') as config_file:
-            train_config = yaml.load(config_file)
+        print('\ntraining regression model')
+
+        if args.fine_tune:
+            print("Fine Tune -- {} deep model".format(args.fine_tune))
+            with open(Path(args.save_dir) / args.fine_tune / 'config.yml', 'r') as config_file:
+                train_config = yaml.load(config_file)
+        else:
+            with open(str(CONFIG_PATH / 'train_keras.yml'), 'r') as config_file:
+                train_config = yaml.load(config_file)
 
         train_reg(args, train_config)
 
     elif args.mode == 'train_cls':
-        print('training classification model')
+        print('\ntraining classification model')
         with open(str(CONFIG_PATH / 'train_keras.yml'), 'r') as config_file:
             train_config = yaml.load(config_file)
 
         train_cls(args, train_config)
 
     elif args.mode == 'train_trad':
-        print('training traditional regression model')
-        with open(str(CONFIG_PATH / 'train_trad.yml'), 'r') as config_file:
-            train_config = yaml.load(config_file)
+        print('\ntraining traditional regression model')
+
+        if args.fine_tune:
+            print("Fine Tune -- {} traditional model".format(args.fine_tune))
+            with open(Path(args.save_dir) / args.fine_tune / 'config.yml', 'r') as config_file:
+                train_config = yaml.load(config_file)
+        else:
+            with open(str(CONFIG_PATH / 'train_trad.yml'), 'r') as config_file:
+                train_config = yaml.load(config_file)
 
         train_trad(args, train_config)
 
@@ -55,7 +69,14 @@ def train_reg(args, train_config):
     :param dict train_config:
     :return: None
     """
-    save_folder = Path(args.save_dir) / train_config['exp_folder']
+    if args.fine_tune:
+        save_folder = Path(args.save_dir) / train_config['exp_folder'] / 'fine_tune'
+        model_name = 'tune_best.h5'
+        model = load_model(str(save_folder.parent / 'rnn_best.h5'))
+    else:
+        save_folder = Path(args.save_dir) / train_config['exp_folder']
+        model_name = 'rnn_best.h5'
+        model = k_models.multi2one_stft(train_config)
 
     # # ===== get pre-processed data =====
     train_data_loader = data_io.DataManager(
@@ -91,11 +112,8 @@ def train_reg(args, train_config):
     tr_kinematic, tr_emg, tr_target = tr_data
     val_kinematic, val_emg, val_target = val_data
 
-    # # obtain a model
-    model = k_models.multi2one_stft(train_config)
-
     checkpoint = ModelCheckpoint(
-        filepath=str(save_folder / 'rnn_best.h5'),
+        filepath=str(save_folder / model_name),
         verbose=1,
         save_best_only=True,
         save_weights_only=False,
@@ -203,10 +221,23 @@ def train_trad(args, train_config):
     from sklearn.linear_model import LinearRegression
     from sklearn.svm import SVR
     from sklearn.neighbors import KNeighborsRegressor
+    from sklearn.gaussian_process import GaussianProcessRegressor
     from sklearn.externals import joblib
     from sklearn.metrics import mean_absolute_error
 
-    save_folder = Path(args.save_dir) / train_config['exp_folder']
+    if args.fine_tune:
+        save_folder = Path(args.save_dir) / train_config['exp_folder'] / 'fine_tune'
+        lin = joblib.load(str(save_folder.parent / 'lin_model.p'))
+        svr = joblib.load(str(save_folder.parent / 'svr_model.p'))
+        knr = joblib.load(str(save_folder.parent / 'knr_model.p'))
+    else:
+        save_folder = Path(args.save_dir) / train_config['exp_folder']
+        # # ===== obtain models =====
+        lin = [LinearRegression(n_jobs=2) for _ in range(4)]
+        svr = [SVR(C=1.0, epsilon=0.2, kernel='rbf', tol=1e-4) for _ in range(4)]
+        knr = [KNeighborsRegressor(n_neighbors=5, weights='uniform', algorithm='auto', leaf_size=30, n_jobs=2)
+               for _ in range(4)]
+        # gpr = [GaussianProcessRegressor() for _ in range(4)]
 
     # # ===== get pre-processed data =====
     train_data_loader = data_io.DataManager(
@@ -246,12 +277,6 @@ def train_trad(args, train_config):
     train_y = tr_target
     val_x = np.hstack((val_kinematic[:, -1, :], val_emg[:, -1, :]))
     val_y = val_target
-
-    # # ===== obtain models =====
-    lin = [LinearRegression(n_jobs=2) for _ in range(4)]
-    svr = [SVR(C=1.0, epsilon=0.2, kernel='rbf', tol=1e-4) for _ in range(4)]
-    knr = [KNeighborsRegressor(n_neighbors=5, weights='uniform', algorithm='auto', leaf_size=30, n_jobs=2)
-           for _ in range(4)]
 
     # # ===== training linear models and evaluate =====
     select_col = list(range(3, train_x.shape[-1]))
@@ -303,6 +328,20 @@ def train_trad(args, train_config):
         print("KNR model {} axis -- mae: {} -- R2: {}".format(i, knr_mae[i], knr_score[i]))
 
     joblib.dump(knr, str(save_folder / 'knr_model.p'))
+
+    # # ===== train GPR models and evaluate =====
+    # print('\ntraining GPR model')
+    # gpr_score = list()
+    # gpr_mae = list()
+    # for i in range(4):
+    #     select_col[0] = i
+    #     gpr[i].fit(train_x[:, select_col], train_y[:, i])
+    #
+    #     gpr_score.append(gpr[i].score(val_x[:, select_col], val_y[:, i]))
+    #
+    #     gpr_val_y = gpr[i].predict(val_x[:, select_col])
+    #     gpr_mae.append(math.degrees(mean_absolute_error(val_y[:, i], gpr_val_y)))
+    #     print("GPR model {} axis -- mae: {} -- R2: {}".format(i, gpr_mae[i], gpr_score[i]))
 
 
 if __name__ == "__main__":

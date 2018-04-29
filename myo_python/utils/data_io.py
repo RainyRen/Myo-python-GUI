@@ -5,7 +5,7 @@ from itertools import cycle
 
 import pandas as pd
 import numpy as np
-from keras.utils import to_categorical
+# from keras.utils import to_categorical
 
 
 class DataManager(object):
@@ -39,7 +39,8 @@ class DataManager(object):
 
         self.separate_rate = separate_rate
         all_file_list = list(self.file_path.glob('*.csv'))
-        print("found files: ", all_file_list)
+        print("Found {} files".format(len(all_file_list)))
+        print(all_file_list, end='\n\n')
 
         all_file_num = len(all_file_list)
         val_file_num = int(all_file_num * separate_rate)
@@ -124,7 +125,7 @@ class DataManager(object):
                 s, e = split_pair
 
                 tr_batch = tuple(map(lambda x: x[s:e], tr_data))
-                val_batch = tuple(map(lambda x: x[s:e], val_data))
+                val_batch = tuple(map(lambda x: x[s:e], val_data)) if self.separate_rate > 0 else None
 
                 yield tr_batch, val_batch
 
@@ -261,6 +262,8 @@ def folder_check(folder_path):
         if user_input in ('n', 'no', 'N', 'No'):
             print('please reset your arguments')
             exit(0)
+        else:
+            print('\n')
     else:
         print('create new folder {}'.format(folder_path.stem))
         folder_path.mkdir()
