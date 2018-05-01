@@ -125,7 +125,8 @@ class MANNCell:
             k_norm = tf.sqrt(tf.reduce_sum(tf.square(k), axis=1, keepdims=True))
             M_norm = tf.sqrt(tf.reduce_sum(tf.square(prev_M), axis=2, keepdims=True))
             norm_product = M_norm * k_norm
-            K = tf.squeeze(inner_product / (norm_product + 1e-8))                   # eq (17)
+            # K = tf.squeeze(inner_product / (norm_product + 1e-8))                   # eq (17)
+            K = tf.squeeze(inner_product / (norm_product + 1e-8), axis=2) 
 
             # Calculating w^c
 

@@ -222,13 +222,17 @@ def test_mann(args, config):
     print("organising materials...\n")
     test_data, _ = test_data_loader.get_all_data(get_emg_raw=config['emg_raw'], emg_3d=False)
     ts_kinematic, ts_emg, ts_target = test_data
+    ts_orbit = ts_kinematic[:, -1, :4]
+
     batch_size = config['batch_size']
     n_batch = ts_target.shape[0] // batch_size
     total_ts_num = n_batch * batch_size
 
+    ts_orbit = ts_orbit[:total_ts_num]
+    ts_target = ts_target[:total_ts_num]
+
     ts_x = np.concatenate((ts_kinematic, ts_emg), axis=-1)
     ts_x_label = np.concatenate([np.zeros(shape=[ts_target.shape[0], 1, 4]), ts_target[:, :-1, :]], axis=1)
-    ts_y = ts_target
 
     # # We launch a Session
     with tf.Session(graph=graph) as sess:
@@ -240,10 +244,21 @@ def test_mann(args, config):
             feed_dict = {x: ts_x[s:e], x_label: ts_x_label[s:e]}
             output.append(sess.run(prediction, feed_dict=feed_dict))
 
-    output = np.concatenate(output, axis=0)
+    result = np.concatenate(output, axis=0)
+    result = result[:, -1, :]
+    ts_target = ts_target[:, -1, :]
+
+    ts_orbit_degrees = np.degrees(ts_orbit)
+    ts_target_degrees = np.degrees(ts_target)
+    result_degrees = np.degrees(result)
+
+
+    _evaluate(ts_target_degrees, result_degrees, ts_orbit_degrees)
+
     pdb.set_trace()
-    mae = mean_absolute_error(ts_y[:total_ts_num, -1, :], output[:total_ts_num, -1, :])
-    print('mae: {}'.format(mae))
+
+    _plot_single_fig(ts_target_degrees[-800:-400], result_degrees[-800:-400], ts_orbit_degrees[-800:-400], dt=dt)
+    _plot_3d_fig(ts_target[200:260], result[200:260], ts_orbit[200:260])
 
 
 def _evaluate(target_deg, estimate_deg, orbit_deg):

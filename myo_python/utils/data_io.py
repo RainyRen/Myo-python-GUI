@@ -79,15 +79,6 @@ class DataManager(object):
         if val:
             val[1] = val[1] / 60.0
 
-        # # !!!!!!!!!!!!!! problem, but can get good result !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # # !!! if want to reproduce problem model, not normalize and cancel degree2rad in self._load_data !!!
-        # # if we want to use rad as input features not degrees, we need convert first
-        # if self.degree2rad:
-        #     tr = list(map(np.radians, tr))
-        #     if val:
-        #         val = list(map(np.radians, val))
-        # # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
         print("train kinematic data shape: ", tr[0].shape)
         print("train emg data shape: ", tr[1].shape)
         print("train target data shape: ", tr[2].shape)
@@ -218,7 +209,6 @@ class DataManager(object):
         #     target_samples = to_categorical(target_samples, num_classes=3)
 
         emg_samples = emg_raw_samples if get_emg_raw else emg_features_samples
-
 
         return kinematic_samples, emg_samples, target_samples
 

@@ -422,7 +422,6 @@ class TableWidget(QWidget):
             # # ===== button state set =====
             self.myo_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "abort.png")))
             self.tcp_send_bnt.setDisabled(False)
-            self.arm_cali_bnt.setDisabled(False)
             self.arm_angle_bnt.setDisabled(False)
             self.data_record_bnt.setDisabled(False)
 

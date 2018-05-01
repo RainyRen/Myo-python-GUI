@@ -280,8 +280,10 @@ class MyoListen(QThread):
             # select_col = list(range(3, lin_input.shape[-1]))
             # for i in range(4):
             #     select_col[0] = i
-            #     self.lin_result[i] = self.estimator[i].predict(lin_input[:, select_col])
-            # self.device_data['estimate_angle'] = list(map(lambda x: round(x, 2), self.lin_result))
+            #     self._lin_result[i] = self.estimator[i].predict(lin_input[select_col][np.newaxis, :])[0]
+            #
+            # estimate_angle_deg = list(map(math.degrees, self._lin_result))
+            # self.device_data['estimate_angle'] = list(map(lambda x: round(x, 2), estimate_angle_deg))
             # print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')
             # # ================================
             # # ========== deep mode ===========
@@ -301,6 +303,7 @@ class MyoListen(QThread):
                 self.device_data['estimate_angle'] = list(map(lambda x: round(x, 2), estimate_angle_deg))
 
                 print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')
+            # # ==================================
         else:
             self.device_data['estimate_angle'] = [0., 0., 0., 0.]
 
@@ -363,7 +366,7 @@ class MyoListen(QThread):
                 # # =================================
                 # # ========= linear model ===========
                 # self.estimator = joblib.load(str(model_path / 'lin_model.p'))
-                # self.lin_result = [0., 0., 0., 0.]
+                # self._lin_result = [0., 0., 0., 0.]
                 # # ==================================
 
                 self.estimate_signal = True

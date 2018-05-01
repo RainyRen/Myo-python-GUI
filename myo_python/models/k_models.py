@@ -400,6 +400,37 @@ def one2one_stft(model_config):
     return model
 
 
+def one2one_nn(model_config, emg_raw=True):
+    """
+    merge kinematic and emg before input model
+    :param model_config:
+    :return:
+    """
+    emg_features_num = 16 if emg_raw else 160
+
+    # # define two separate inputs
+    input_kinematic = Input(shape=(model_config['time_length'], 16))
+    input_emg = Input(shape=(model_config['time_length'], emg_features_num))
+
+    merge_data = Concatenate()([input_kinematic, input_emg])
+
+    hidden_1 = Dense(128, activation='linear')(merge_data)
+    hidden_1 = Dropout(0.3)(hidden_1)
+    hidden_2 = Dense(256, activation='linear')(hidden_1)
+    hidden_2 = Dropout(0.3)(hidden_2)
+    hidden_3 = Dense(128, activation='linear')(hidden_2)
+    hidden_3 = Dropout(0.3)(hidden_3)
+
+    output = Dense(4, activation=None)(hidden_3)
+
+    model = Model([input_kinematic, input_emg], output)
+    model.summary()
+    adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=1e-6, amsgrad=True)
+    model.compile(optimizer=adam, loss='mean_absolute_error', metrics=['mae'])
+
+    return model
+
+
 # # ====================================================================================================================
 # # ============================================== classifier ==========================================================
 def bin_cls(model_config):

@@ -25,25 +25,23 @@ def main():
     parser.add_argument('--restore_training', default=False)
     parser.add_argument('--debug', default=False)
     parser.add_argument('--seq_length', default=20)
-    parser.add_argument('--future_time', default=1)
+    parser.add_argument('--future_time', default=4)
     parser.add_argument('--degree2rad', default=True)
     parser.add_argument('--emg_raw', default=False)
     parser.add_argument('--model', default="MANN", help='LSTM, MANN, MANN2 or NTM')
-    parser.add_argument('--read_head_num', default=4)
-    parser.add_argument('--batch_size', default=16)
-    parser.add_argument('--num_epoches', default=100000)
+    parser.add_argument('--read_head_num', default=2)
+    parser.add_argument('--batch_size', default=1)
+    parser.add_argument('--num_epoches', default=200000)
     parser.add_argument('--learning_rate', default=1e-3)
     parser.add_argument('--rnn_size', default=200)
-    parser.add_argument('--image_width', default=20)
-    parser.add_argument('--image_height', default=20)
     parser.add_argument('--rnn_num_layers', default=1)
     parser.add_argument('--memory_size', default=128)
     parser.add_argument('--memory_vector_dim', default=40)
     parser.add_argument('--shift_range', default=1, help='Only for model=NTM')
     parser.add_argument('--write_head_num', default=1, help='Only for model=NTM. For MANN #(write_head) = #(read_head)')
-    parser.add_argument('--save_dir', default='./exp/mann')
-    parser.add_argument('--tensorboard_dir', default='./exp/mann/summary')
-    parser.add_argument('--extract_dir', default='./exp/mann/MANN')
+    parser.add_argument('--save_dir', default='./exp/mann_s20_h2_f4')
+    parser.add_argument('--tensorboard_dir', default='./exp/mann_s20_h2_f4/summary')
+    parser.add_argument('--extract_dir', default='./exp/mann_s20_h2_f4/MANN')
     args = parser.parse_args()
 
     # # ===== determine mode =====
@@ -132,7 +130,7 @@ def train_tf_reg(args):
 
             # # --------------------------------
             # # ---------- Test ---------
-            if b % 100 == 0:
+            if b % 500 == 0:
                 val_data, _ = next(val_data_generator)
                 val_kinematic, val_emg, val_target = val_data
                 x_val = np.concatenate((val_kinematic, val_emg), axis=-1)
@@ -157,7 +155,7 @@ def train_tf_reg(args):
     print('Finished Training!')
 
 
-def freeze_graph(model_dir, output_node_names='stack'):
+def freeze_graph(model_dir, output_node_names='output'):
     """Extract the sub graph defined by the output nodes and convert
     all its variables into constant
     Args:
