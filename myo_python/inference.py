@@ -2,9 +2,9 @@
 import pdb
 import argparse
 import yaml
-import math
 from pathlib import Path
 
+import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -23,26 +23,38 @@ MODEL_DIR_NAME = "JLW_stft_f4_L2"
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', default="test_reg", help='test_reg or test_cls or test_trad')
+    parser.add_argument('--mode', default="test_reg", help='test_reg or test_cls or test_trad or test_mann')
     parser.add_argument('--save_dir', default='./exp')
+    parser.add_argument('--mann_dir', default='./exp/mann')
     args = parser.parse_args()
 
     # # ===== load model config from saved config file =====
     model_path = Path(args.save_dir) / MODEL_DIR_NAME
-
     with open(model_path / 'config.yml') as config_file:
         test_config = yaml.load(config_file)
 
     if args.mode == 'test_reg':
+        print('\ntest keras regression model')
         test_config['model_path'] = str(model_path / 'rnn_best.h5')
         test_reg(test_config)
 
     elif args.mode == 'test_cls':
+        print('\ntest keras classification model')
         test_cls(test_config)
 
     elif args.mode == 'test_trad':
+        print('\ntest traditional model')
         test_config['all_model_path'] = model_path
         test_trad(test_config)
+
+    elif args.mode == 'test_mann':
+        print('\ntest mann model')
+
+        model_path = Path(args.mann_dir)
+        with open(model_path / 'config.yml') as config_file:
+            test_config = yaml.load(config_file)
+
+        test_mann(args, test_config)
 
     else:
         raise ValueError('No such mode, please check again')
@@ -179,6 +191,61 @@ def test_trad(config):
     _plot_3d_fig(ts_target[200:260], result[200:260], ts_orbit[200:260])
 
 
+def test_mann(args, config):
+    from tqdm import tqdm
+
+    frozen_model_path = Path(args.mann_dir) / 'frozen_model.pb'
+    graph = _load_graph(str(frozen_model_path))
+
+    # # We can verify that we can access the list of operations in the graph
+    # # for op in graph.get_operations():
+    # #     print(op.name)
+    # # prefix/Placeholder/inputs_placeholder
+    # # ...
+    # # prefix/Accuracy/predictions
+
+    # # We access the input and output nodes
+    x = graph.get_tensor_by_name('prefix/Placeholder:0')
+    x_label = graph.get_tensor_by_name('prefix/Placeholder_1:0')
+    prediction = graph.get_tensor_by_name('prefix/output:0')
+
+    # # load test data
+    test_data_loader = DataManager(
+        './data/20hz/test',
+        separate_rate=0.,
+        time_length=config['seq_length'],
+        future_time=config['future_time'],
+        one_target=False,
+        degree2rad=config['degree2rad'],
+        use_direction=False
+    )
+    print("organising materials...\n")
+    test_data, _ = test_data_loader.get_all_data(get_emg_raw=config['emg_raw'], emg_3d=False)
+    ts_kinematic, ts_emg, ts_target = test_data
+    batch_size = config['batch_size']
+    n_batch = ts_target.shape[0] // batch_size
+    total_ts_num = n_batch * batch_size
+
+    ts_x = np.concatenate((ts_kinematic, ts_emg), axis=-1)
+    ts_x_label = np.concatenate([np.zeros(shape=[ts_target.shape[0], 1, 4]), ts_target[:, :-1, :]], axis=1)
+    ts_y = ts_target
+
+    # # We launch a Session
+    with tf.Session(graph=graph) as sess:
+        # # Note: we don't nee to initialize/restore anything
+        # # There is no Variables in this graph, only hardcoded constants
+        output = []
+        for i in tqdm(range(n_batch), ncols=100):
+            s, e = i * batch_size, (i + 1) * batch_size
+            feed_dict = {x: ts_x[s:e], x_label: ts_x_label[s:e]}
+            output.append(sess.run(prediction, feed_dict=feed_dict))
+
+    output = np.concatenate(output, axis=0)
+    pdb.set_trace()
+    mae = mean_absolute_error(ts_y[:total_ts_num, -1, :], output[:total_ts_num, -1, :])
+    print('mae: {}'.format(mae))
+
+
 def _evaluate(target_deg, estimate_deg, orbit_deg):
     r2 = r2_score(target_deg, estimate_deg)
     r2_2 = r2_score(target_deg[:, 0], estimate_deg[:, 0])
@@ -244,6 +311,21 @@ def _plot_3d_fig(target_rad, estimate_rad, orbit_rad):
     ax.plot(x_es, y_es, z_es, 'r--')
 
     plt.show()
+
+
+def _load_graph(frozen_graph_filename):
+    # # We load the protobuf file from the disk and parse it to retrieve the
+    # # unserialized graph_def
+    with tf.gfile.GFile(frozen_graph_filename, "rb") as f:
+        graph_def = tf.GraphDef()
+        graph_def.ParseFromString(f.read())
+
+    # # Then, we import the graph_def into a new Graph and returns it
+    with tf.Graph().as_default() as graph:
+        # # The name var will prefix every op/nodes in your graph
+        # # Since we load everything in a new graph, this is not needed
+        tf.import_graph_def(graph_def, name="prefix")
+    return graph
 
 
 if __name__ == "__main__":

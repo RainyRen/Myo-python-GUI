@@ -16,6 +16,7 @@ import zmq
 from PyQt5.QtCore import QThread, QMutex, QMutexLocker, pyqtSignal
 import numpy as np
 from keras.models import load_model
+from sklearn.externals import joblib
 
 # # ===== own library =====
 import myo
@@ -264,27 +265,36 @@ class MyoListen(QThread):
 
         if self.estimate_signal:
             # # it must be two myo, so directly select two data
-            # arm_angle = self.device_data['arm_angle']
+            # arm_angle = self.device_data['arm_angle']         # # use for get degrees arm angle
             arm_angle = list(map(math.radians, self.device_data['arm_angle']))
             gyr = self.device_data['gyroscope'][0] + self.device_data['gyroscope'][1]
             gyr = list(map(math.radians, gyr))
-            # gyr = list(map(lambda x: round(x, 3), gyr))
             acc = self.device_data['acceleration'][0] + self.device_data['acceleration'][1]
-            # acc = list(map(lambda x: round(x, 3), acc))
+
+            kinematic_list = arm_angle + gyr + acc
+
+            # # ========= linear model =========
+            # emg_list = [channel / 60 for single_emg in self.device_data['emg'] for channel in single_emg]
+            # lin_input = np.asarray(kinematic_list + emg_list)
+            #
+            # select_col = list(range(3, lin_input.shape[-1]))
+            # for i in range(4):
+            #     select_col[0] = i
+            #     self.lin_result[i] = self.estimator[i].predict(lin_input[:, select_col])
+            # self.device_data['estimate_angle'] = list(map(lambda x: round(x, 2), self.lin_result))
+            # print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')
+            # # ================================
+            # # ========== deep mode ===========
             emg_features_mag_3d = np.abs(emg_features)
 
-            self._kinematic_window.append(arm_angle + gyr + acc)
+            self._kinematic_window.append(kinematic_list)
             # self._emg_window.append(self.device_data['emg'][0] + self.device_data['emg'][1])
             self._emg_window.append(emg_features_mag_3d)
 
             if len(self._kinematic_window) == self._model_window_size:
                 input_kinematic = np.asarray(self._kinematic_window)[np.newaxis, ...]
                 input_emg = np.asarray(self._emg_window)[np.newaxis, ..., np.newaxis]
-
-                input_emg = input_emg / 60.0
-
-                # input_kinematic = np.radians(input_kinematic)
-                # input_emg = np.radians(input_emg)
+                input_emg = input_emg / 60.0        # # normalize EMG signal
 
                 estimate_angle_rad = self.estimator.predict_on_batch([input_kinematic, input_emg])
                 estimate_angle_deg = np.degrees(estimate_angle_rad).ravel().tolist()
@@ -344,10 +354,18 @@ class MyoListen(QThread):
                     model_config = yaml.load(model_config_file)
                     self._model_window_size = model_config['time_length']
 
-                self.estimator = load_model(str(model_path / 'rnn_best.h5'))
-                self.estimator._make_predict_function()
                 self._kinematic_window = deque(maxlen=self._model_window_size)
                 self._emg_window = deque(maxlen=self._model_window_size)
+
+                # # ========== keras model ==========
+                self.estimator = load_model(str(model_path / 'rnn_best.h5'))
+                self.estimator._make_predict_function()
+                # # =================================
+                # # ========= linear model ===========
+                # self.estimator = joblib.load(str(model_path / 'lin_model.p'))
+                # self.lin_result = [0., 0., 0., 0.]
+                # # ==================================
+
                 self.estimate_signal = True
 
             else:
@@ -358,5 +376,4 @@ class MyoListen(QThread):
 
 
 if __name__ == '__main__':
-    myo_listen = MyoListen()
-    myo_listen.run()
+    pass

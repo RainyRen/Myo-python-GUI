@@ -109,7 +109,7 @@ class NTMOneShotLearningModel:
 
             self.o.append(output)
             self.state_list.append(state)
-        self.o = tf.stack(self.o, axis=1)
+        self.o = tf.stack(self.o, axis=1, name='output')
         self.state_list.append(state)
 
         eps = 1e-8

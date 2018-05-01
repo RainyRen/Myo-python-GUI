@@ -336,8 +336,68 @@ def multi2one_simple_stft(model_config, inference=False):
 
 # # ====================================================================================================================
 # # ============================================== previous fusion =====================================================
-def multi2one_2():
-    pass
+def one2one(model_config):
+    """
+    merge kinematic and emg before input model
+    :param model_config:
+    :return:
+    """
+    rnn_neurons = model_config['rnn_neurons']
+    hidden_1_neurons = model_config['hidden_1_neurons']
+    hidden_2_neurons = model_config['hidden_2_neurons']
+
+    # # define two separate inputs
+    input_kinematic = Input(shape=(model_config['time_length'], 16))
+    input_emg = Input(shape=(model_config['time_length'], 16))
+
+    merge_data = Concatenate()([input_kinematic, input_emg])
+
+    rnn_cell = LSTM(rnn_neurons, dropout=0.2, return_sequences=False)(merge_data)
+
+    hidden_1 = Dense(hidden_1_neurons, activation='linear')(rnn_cell)
+    hidden_1 = Dropout(0.3)(hidden_1)
+    hidden_2 = Dense(hidden_2_neurons, activation='linear')(hidden_1)
+    hidden_2 = Dropout(0.3)(hidden_2)
+    output = Dense(4, activation=None)(hidden_2)
+
+    model = Model([input_kinematic, input_emg], output)
+    model.summary()
+    adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=1e-6, amsgrad=True)
+    model.compile(optimizer=adam, loss='mean_absolute_error', metrics=['mae'])
+
+    return model
+
+
+def one2one_stft(model_config):
+    """
+    merge kinematic and emg before input model
+    :param model_config:
+    :return:
+    """
+    rnn_neurons = model_config['rnn_neurons']
+    hidden_1_neurons = model_config['hidden_1_neurons']
+    hidden_2_neurons = model_config['hidden_2_neurons']
+
+    # # define two separate inputs
+    input_kinematic = Input(shape=(model_config['time_length'], 16))
+    input_emg = Input(shape=(model_config['time_length'], 160))
+
+    merge_data = Concatenate()([input_kinematic, input_emg])
+
+    rnn_cell = LSTM(rnn_neurons, dropout=0.2, return_sequences=False)(merge_data)
+
+    hidden_1 = Dense(hidden_1_neurons, activation='relu')(rnn_cell)
+    hidden_1 = Dropout(0.3)(hidden_1)
+    hidden_2 = Dense(hidden_2_neurons, activation='relu')(hidden_1)
+    hidden_2 = Dropout(0.3)(hidden_2)
+    output = Dense(4, activation=None)(hidden_2)
+
+    model = Model([input_kinematic, input_emg], output)
+    model.summary()
+    adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=1e-6, amsgrad=True)
+    model.compile(optimizer=adam, loss='mean_absolute_error', metrics=['mae'])
+
+    return model
 
 
 # # ====================================================================================================================
