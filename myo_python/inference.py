@@ -17,7 +17,7 @@ from utils.data_io import DataManager, angle2position
 UPPER_ARM_LEN = 32      # # unit: cm
 FOREARM_LEN = 33        # # unit: cm
 
-MODEL_DIR_NAME = "JLW_stft_f4_L2"
+MODEL_DIR_NAME = "JLW_stft_f4_dueling"
 # # ==================================
 
 
@@ -25,7 +25,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default="test_reg", help='test_reg or test_cls or test_trad or test_mann')
     parser.add_argument('--save_dir', default='./exp')
-    parser.add_argument('--mann_dir', default='./exp/mann')
+    parser.add_argument('--mann_dir', default='./exp/mann_s10_h2_f4')
     args = parser.parse_args()
 
     # # ===== load model config from saved config file =====
@@ -74,7 +74,7 @@ def test_reg(config):
     dt = 1 / config['fs']
 
     # train_data, test_data = data_mg.get_all_data()
-    test_data, _ = test_data_loader.get_all_data()
+    test_data, _ = test_data_loader.get_all_data(get_emg_raw=False, emg_3d=True)
     ts_kinematic, ts_emg, ts_target = test_data
     ts_orbit = ts_kinematic[:, -1, :4]
 
@@ -219,6 +219,7 @@ def test_mann(args, config):
         degree2rad=config['degree2rad'],
         use_direction=False
     )
+    dt = 1 / 20
     print("organising materials...\n")
     test_data, _ = test_data_loader.get_all_data(get_emg_raw=config['emg_raw'], emg_3d=False)
     ts_kinematic, ts_emg, ts_target = test_data
@@ -239,7 +240,7 @@ def test_mann(args, config):
         # # Note: we don't nee to initialize/restore anything
         # # There is no Variables in this graph, only hardcoded constants
         output = []
-        for i in tqdm(range(n_batch), ncols=100):
+        for i in tqdm(range(n_batch), ncols=60):
             s, e = i * batch_size, (i + 1) * batch_size
             feed_dict = {x: ts_x[s:e], x_label: ts_x_label[s:e]}
             output.append(sess.run(prediction, feed_dict=feed_dict))

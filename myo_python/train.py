@@ -5,8 +5,10 @@ import yaml
 from pathlib import Path
 
 import numpy as np
+import tensorflow as tf
 from keras.models import load_model
 from keras.callbacks import ModelCheckpoint
+from keras.backend.tensorflow_backend import set_session
 
 from utils import data_io
 from models import k_models
@@ -15,6 +17,11 @@ from models import k_models
 ROOT_PATH = Path(__file__).parent
 CONFIG_PATH = ROOT_PATH / "config"
 
+# # =============================
+# # ========= GPU config ========
+tf_config = tf.ConfigProto()
+tf_config.gpu_options.per_process_gpu_memory_fraction = 0.4
+set_session(tf.Session(config=tf_config))
 # # =============================
 
 
@@ -76,7 +83,7 @@ def train_reg(args, train_config):
     else:
         save_folder = Path(args.save_dir) / train_config['exp_folder']
         model_name = 'rnn_best.h5'
-        model = k_models.multi2one_stft(train_config)
+        model = k_models.multi2one_stft_dueling(train_config)
 
     # # ===== get pre-processed data =====
     train_data_loader = data_io.DataManager(
@@ -99,8 +106,8 @@ def train_reg(args, train_config):
     )
 
     print("organising materials...\n")
-    tr_data, _ = train_data_loader.get_all_data()
-    val_data, _ = val_data_loader.get_all_data()
+    tr_data, _ = train_data_loader.get_all_data(get_emg_raw=False, emg_3d=True)
+    val_data, _ = val_data_loader.get_all_data(get_emg_raw=False, emg_3d=True)
     pdb.set_trace()
 
     # # check folder exist, if not create new one
@@ -129,7 +136,7 @@ def train_reg(args, train_config):
         batch_size=train_config['batch_size'],
         epochs=train_config['epochs'],
         callbacks=[checkpoint, save_history],
-        shuffle=False
+        shuffle=True
     )
 
 

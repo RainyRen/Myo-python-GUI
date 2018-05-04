@@ -3,7 +3,7 @@
 import keras.backend as K
 from keras.models import Model
 from keras.layers import (Input,
-                          Concatenate, Add, Multiply,
+                          Concatenate, Add,
                           Dense, Flatten,
                           Conv2D, MaxPooling2D,
                           TimeDistributed,
@@ -113,59 +113,48 @@ def multi2one(model_config, inference=False):
     return model
 
 
-def multi2multi_stft(model_config, inference=False):
+def multi2one_dueling(model_config, inference=False):
     """
     model input kinematic and emg in short-time Fourier transform, output the whole time step prediction
     :param dict model_config:
     :param bool inference:
     :return:
     """
-    rnn_neurons = model_config['rnn_neurons']
-    hidden_1_neurons = model_config['hidden_1_neurons']
-    hidden_2_neurons = model_config['hidden_2_neurons']
 
     # # define two separate inputs
     input_kinematic = Input(shape=(model_config['time_length'], 16))
-    input_emg = Input(shape=(model_config['time_length'], 160))
+    input_emg = Input(shape=(model_config['time_length'], 16))
 
     # # define structures
-    if inference:
-        kinematic_rnn_cell = LSTM(
-            rnn_neurons,
-            return_sequences=True,
-            stateful=False)(input_kinematic)
-        emg_rnn_cell = LSTM(
-            rnn_neurons,
-            return_sequences=True,
-            stateful=False)(input_emg)
+    kinematic_embed = TimeDistributed(Dense(64, activation=None))(input_kinematic)
+    emg_embed = TimeDistributed(Dense(64, activation='relu'))(input_emg)
 
-    else:
-        kinematic_rnn_cell = LSTM(
-            128,
-            dropout=0.3,
-            recurrent_dropout=0.2,
-            return_sequences=True,
-            stateful=False)(input_kinematic)
-        emg_rnn_cell = LSTM(
-            256,
-            dropout=0.3,
-            recurrent_dropout=0.2,
-            return_sequences=True,
-            stateful=False)(input_emg)
+    kinematic_rnn_cell = LSTM(
+        64,
+        dropout=0.1,
+        return_sequences=False,
+        stateful=False)(kinematic_embed)
 
-    merge_data = Concatenate()([kinematic_rnn_cell, emg_rnn_cell])
+    emg_rnn_cell = LSTM(
+        64,
+        dropout=0.1,
+        return_sequences=False,
+        stateful=False)(emg_embed)
 
-    hidden_1 = TimeDistributed(Dense(hidden_1_neurons), activation='selu')(merge_data)
-    hidden_1 = Dropout(0.5)(hidden_1)
+    emg_projection = Dense(64, activation='relu')(emg_rnn_cell)
+    kinematic_projection = Dense(64, activation='linear')(kinematic_rnn_cell)
 
-    hidden_2 = TimeDistributed(Dense(hidden_2_neurons), activation='selu')(hidden_1)
-    hidden_2 = Dropout(0.5)(hidden_2)
+    kinematic_value = Dense(4, activation='linear')(kinematic_projection)
+    emg_advantage = Dense(4, activation='linear')(emg_projection)
 
-    output = TimeDistributed(Dense(4, activation=None))(hidden_2)
+    merge_data = Add()([kinematic_value, emg_advantage])
+
+    output = merge_data
 
     model = Model([input_kinematic, input_emg], output)
     model.summary()
-    model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mae'])
+    adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=1e-6, amsgrad=True)
+    model.compile(optimizer=adam, loss='mean_absolute_error', metrics=['mae'])
 
     return model
 
@@ -281,7 +270,7 @@ def multi2one_stft(model_config, inference=False):
     return model
 
 
-def multi2one_dueling(model_config, inference=False):
+def multi2one_stft_dueling(model_config, inference=False):
     """
     model input kinematic and emg in short-time Fourier transform, output the whole time step prediction
     :param dict model_config:

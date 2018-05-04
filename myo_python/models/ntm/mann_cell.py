@@ -4,7 +4,7 @@ import numpy as np
 
 class MANNCell:
     def __init__(self, rnn_size, memory_size, memory_vector_dim, head_num, gamma=0.95,
-                 reuse=False, k_strategy='separate'):
+                 reuse=False, k_strategy='separate', batch_size=16):
         self.rnn_size = rnn_size
         self.memory_size = memory_size
         self.memory_vector_dim = memory_vector_dim
@@ -14,6 +14,8 @@ class MANNCell:
         self.step = 0
         self.gamma = gamma
         self.k_strategy = k_strategy
+
+        self.state = self.zero_state(batch_size, tf.float32)
 
     def __call__(self, x, prev_state):
         # read vector (the content that is read out, length = memory_vector_dim)
@@ -126,7 +128,7 @@ class MANNCell:
             M_norm = tf.sqrt(tf.reduce_sum(tf.square(prev_M), axis=2, keepdims=True))
             norm_product = M_norm * k_norm
             # K = tf.squeeze(inner_product / (norm_product + 1e-8))                   # eq (17)
-            K = tf.squeeze(inner_product / (norm_product + 1e-8), axis=2) 
+            K = tf.squeeze(inner_product / (norm_product + 1e-8), axis=2)
 
             # Calculating w^c
 
