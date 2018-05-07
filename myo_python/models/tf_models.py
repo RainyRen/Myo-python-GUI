@@ -4,7 +4,6 @@ import numpy as np
 
 class NTMOneShotLearningModel:
     def __init__(self, args):
-        args.output_dim = 4
         input_dim = 32 if args.emg_raw else 176
 
         self.x = tf.placeholder(
@@ -29,7 +28,8 @@ class NTMOneShotLearningModel:
                                     read_head_num=args.read_head_num,
                                     write_head_num=args.write_head_num,
                                     addressing_mode='content_and_location',
-                                    output_dim=args.output_dim)
+                                    output_dim=args.output_dim,
+                                    batch_size=args.batch_size)
         elif args.model == 'MANN':
             from .ntm import mann_cell as mann_cell
             cell = mann_cell.MANNCell(args.rnn_size, args.memory_size, args.memory_vector_dim,

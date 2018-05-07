@@ -51,7 +51,8 @@ def main():
 
     elif args.mode == 'extract':
         print('freeze {} model'.format(args.extract_dir))
-        freeze_graph(args.extract_dir)
+        # freeze_graph(args.extract_dir)
+        freeze_graph2(Path(args.extract_dir))
 
     else:
         raise ValueError('No such mode')
@@ -66,6 +67,7 @@ def train_tf_reg(args):
     save_folder = Path(args.save_dir)
 
     # # ===== obtain model =====
+    args.output_dim = 4
     model = NTMOneShotLearningModel(args)
 
     # # ===== get pre-processed data =====
@@ -158,10 +160,8 @@ def train_tf_reg(args):
 def freeze_graph(model_dir, output_node_names='output'):
     """Extract the sub graph defined by the output nodes and convert
     all its variables into constant
-    Args:
-        model_dir: the root folder containing the checkpoint state file
-        output_node_names: a string, containing all the output node's names,
-                            comma separated
+    :param model_dir: the root folder containing the checkpoint state file
+    :param output_node_names: a string, containing all the output node's names, comma separated
     """
     if not tf.gfile.Exists(model_dir):
         raise AssertionError(
@@ -172,38 +172,74 @@ def freeze_graph(model_dir, output_node_names='output'):
         print("You need to supply the name of a node to --output_node_names.")
         return -1
 
-    # We retrieve our checkpoint fullpath
+    # # We retrieve our checkpoint fullpath
     checkpoint = tf.train.get_checkpoint_state(model_dir)
     input_checkpoint = checkpoint.model_checkpoint_path
 
-    # We precise the file fullname of our freezed graph
+    # # We precise the file fullname of our freezed graph
     absolute_model_dir = "/".join(input_checkpoint.split('/')[:-1])
     output_graph = absolute_model_dir + "/frozen_model.pb"
 
-    # We clear devices to allow TensorFlow to control on which device it will load operations
+    # # We clear devices to allow TensorFlow to control on which device it will load operations
     clear_devices = True
 
-    # We start a session using a temporary fresh Graph
+    # # We start a session using a temporary fresh Graph
     with tf.Session(graph=tf.Graph()) as sess:
-        # We import the meta graph in the current default Graph
+        # # We import the meta graph in the current default Graph
         saver = tf.train.import_meta_graph(input_checkpoint + '.meta', clear_devices=clear_devices)
 
-        # We restore the weights
+        # # We restore the weights
         saver.restore(sess, input_checkpoint)
 
-        # We use a built-in TF helper to export variables to constants
+        # # We use a built-in TF helper to export variables to constants
         output_graph_def = tf.graph_util.convert_variables_to_constants(
             sess,  # The session is used to retrieve the weights
             tf.get_default_graph().as_graph_def(),  # The graph_def is used to retrieve the nodes
-            output_node_names.split(",")  # The output node names are used to select the usefull nodes
+            output_node_names.split(",")  # The output node names are used to select the useful nodes
         )
 
-        # Finally we serialize and dump the output graph to the filesystem
+        # # Finally we serialize and dump the output graph to the filesystem
         with tf.gfile.GFile(output_graph, "wb") as f:
             f.write(output_graph_def.SerializeToString())
         print("%d ops in the final graph." % len(output_graph_def.node))
 
     return output_graph_def
+
+
+def freeze_graph2(model_dir, output_node_names='output'):
+    """
+    change mode to batch size 1 for real-time inference
+    :param model_dir:
+    :param output_node_names:
+    :return:
+    """
+    from collections import namedtuple
+
+    with open(model_dir.parent / 'config.yml', 'r') as config_file:
+        config = yaml.load(config_file)
+
+    config['batch_size'] = 1
+    model_args = namedtuple('args', config.keys())(*config.values())
+
+    # # ===== load model =====
+    model = NTMOneShotLearningModel(model_args)
+    saver = tf.train.Saver()
+
+    output_node_names = 'output'
+    output_graph = str(model_dir.parent / "frozen_model2.pb")
+
+    with tf.Session() as sess:
+        saver.restore(sess, str(model_dir / 'model.tfmodel-295000'))
+
+        output_graph_def = tf.graph_util.convert_variables_to_constants(
+            sess,
+            tf.get_default_graph().as_graph_def(),
+            output_node_names.split(",")
+        )
+
+        with tf.gfile.GFile(output_graph, "wb") as f:
+            f.write(output_graph_def.SerializeToString())
+        print("%d ops in the final graph." % len(output_graph_def.node))
 
 
 if __name__ == "__main__":

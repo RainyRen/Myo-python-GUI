@@ -13,7 +13,7 @@ from sklearn.metrics import r2_score, mean_absolute_error
 
 from utils.data_io import DataManager, angle2position
 
-# # ===== define global varibles =====
+# # ===== define global variables =====
 UPPER_ARM_LEN = 32      # # unit: cm
 FOREARM_LEN = 33        # # unit: cm
 
@@ -29,21 +29,32 @@ def main():
     args = parser.parse_args()
 
     # # ===== load model config from saved config file =====
-    model_path = Path(args.save_dir) / MODEL_DIR_NAME
-    with open(model_path / 'config.yml') as config_file:
-        test_config = yaml.load(config_file)
-
     if args.mode == 'test_reg':
         print('\ntest keras regression model')
+
+        model_path = Path(args.save_dir) / MODEL_DIR_NAME
+        with open(model_path / 'config.yml') as config_file:
+            test_config = yaml.load(config_file)
+
         test_config['model_path'] = str(model_path / 'rnn_best.h5')
         test_reg(test_config)
 
     elif args.mode == 'test_cls':
         print('\ntest keras classification model')
+
+        model_path = Path(args.save_dir) / MODEL_DIR_NAME
+        with open(model_path / 'config.yml') as config_file:
+            test_config = yaml.load(config_file)
+
         test_cls(test_config)
 
     elif args.mode == 'test_trad':
         print('\ntest traditional model')
+
+        model_path = Path(args.save_dir) / MODEL_DIR_NAME
+        with open(model_path / 'config.yml') as config_file:
+            test_config = yaml.load(config_file)
+
         test_config['all_model_path'] = model_path
         test_trad(test_config)
 
@@ -194,7 +205,7 @@ def test_trad(config):
 def test_mann(args, config):
     from tqdm import tqdm
 
-    frozen_model_path = Path(args.mann_dir) / 'frozen_model.pb'
+    frozen_model_path = Path(args.mann_dir) / 'frozen_model2.pb'
     graph = _load_graph(str(frozen_model_path))
 
     # # We can verify that we can access the list of operations in the graph
@@ -225,7 +236,7 @@ def test_mann(args, config):
     ts_kinematic, ts_emg, ts_target = test_data
     ts_orbit = ts_kinematic[:, -1, :4]
 
-    batch_size = config['batch_size']
+    batch_size = 1  # config['batch_size']
     n_batch = ts_target.shape[0] // batch_size
     total_ts_num = n_batch * batch_size
 
@@ -252,7 +263,6 @@ def test_mann(args, config):
     ts_orbit_degrees = np.degrees(ts_orbit)
     ts_target_degrees = np.degrees(ts_target)
     result_degrees = np.degrees(result)
-
 
     _evaluate(ts_target_degrees, result_degrees, ts_orbit_degrees)
 
