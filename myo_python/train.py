@@ -77,9 +77,15 @@ def train_reg(args, train_config):
     :return: None
     """
     if args.fine_tune:
-        save_folder = Path(args.save_dir) / train_config['exp_folder'] / 'fine_tune'
+        model_folder_path = Path(args.save_dir) / args.fine_tune
+
+        model_weight_path = model_folder_path / 'rnn_weight.h5'
+        save_folder = model_folder_path / 'fine_tune'
         model_name = 'tune_best.h5'
-        model = load_model(str(save_folder.parent / 'rnn_best.h5'))
+
+        model = k_models.multi2one_stft_dueling(train_config, fine_tune=True)
+        model.load_weights(str(model_weight_path))
+
     else:
         save_folder = Path(args.save_dir) / train_config['exp_folder']
         model_name = 'rnn_best.h5'
@@ -218,7 +224,7 @@ def train_cls(args, train_config):
         batch_size=train_config['batch_size'],
         epochs=train_config['epochs'],
         callbacks=[checkpoint, save_history],
-        shuffle=False
+        shuffle=True
     )
 
 

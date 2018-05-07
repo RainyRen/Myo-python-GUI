@@ -270,11 +270,11 @@ def multi2one_stft(model_config, inference=False):
     return model
 
 
-def multi2one_stft_dueling(model_config, inference=False):
+def multi2one_stft_dueling(model_config, fine_tune=False):
     """
     model input kinematic and emg in short-time Fourier transform, output the whole time step prediction
     :param dict model_config:
-    :param bool inference:
+    :param bool fine_tune:
     :return:
     """
 
@@ -282,53 +282,56 @@ def multi2one_stft_dueling(model_config, inference=False):
     input_kinematic = Input(shape=(model_config['time_length'], 16))
     input_emg = Input(shape=(model_config['time_length'], 16, 10, 1))
 
+    freeze_layer = not fine_tune
+
     # # define structures
-    embed = TimeDistributed(Dense(64, activation=None))(input_kinematic)
+    embed = TimeDistributed(Dense(64, activation=None, trainable=freeze_layer))(input_kinematic)
 
     cnn_1 = TimeDistributed(
         Conv2D(
-            16,
-            3,
+            16, 3,
             data_format="channels_first",
             padding='same',
             activation='relu',
-            strides=1))(input_emg)
+            strides=1,
+            trainable=freeze_layer))(input_emg)
     cnn_2 = TimeDistributed(
         Conv2D(
-            16,
-            3,
+            16, 3,
             data_format="channels_first",
             padding='same',
             activation='relu',
-            strides=1))(cnn_1)
+            strides=1,
+            trainable=freeze_layer))(cnn_1)
 
-    max_pool_1 = TimeDistributed(MaxPooling2D(pool_size=(2, 1)))(cnn_2)
+    max_pool_1 = TimeDistributed(MaxPooling2D(pool_size=(2, 1)), trainable=freeze_layer)(cnn_2)
 
     cnn_3 = TimeDistributed(
         Conv2D(
-            32,
-            3,
+            32, 3,
             data_format="channels_first",
             padding='same',
             activation='relu',
-            strides=1))(max_pool_1)
+            strides=1,
+            trainable=freeze_layer))(max_pool_1)
 
     cnn_4 = TimeDistributed(
         Conv2D(
-            32,
-            3,
+            32, 3,
             data_format="channels_first",
             padding='same',
             activation='relu',
-            strides=1))(cnn_3)
+            strides=1,
+            trainable=freeze_layer))(cnn_3)
 
-    max_pool_2 = TimeDistributed(MaxPooling2D(pool_size=(2, 1)))(cnn_4)
+    max_pool_2 = TimeDistributed(MaxPooling2D(pool_size=(2, 1), trainable=freeze_layer))(cnn_4)
 
     kinematic_rnn_cell = LSTM(
         64,
         dropout=0.1,
         return_sequences=False,
-        stateful=False)(embed)
+        stateful=False,
+        trainable=freeze_layer)(embed)
 
     emg_rnn_cell = ConvLSTM2D(
         64,  # # number of filters
@@ -344,9 +347,9 @@ def multi2one_stft_dueling(model_config, inference=False):
     emg_rnn_cell = Flatten()(emg_rnn_cell)
 
     emg_projection = Dense(64, activation='relu')(emg_rnn_cell)
-    kinematic_projection = Dense(64, activation='linear')(kinematic_rnn_cell)
+    kinematic_projection = Dense(64, activation='linear', trainable=freeze_layer)(kinematic_rnn_cell)
 
-    kinematic_value = Dense(4, activation='linear')(kinematic_projection)
+    kinematic_value = Dense(4, activation='linear', trainable=freeze_layer)(kinematic_projection)
     emg_advantage = Dense(4, activation='linear')(emg_projection)
 
     merge_data = Add()([kinematic_value, emg_advantage])
@@ -355,7 +358,8 @@ def multi2one_stft_dueling(model_config, inference=False):
 
     model = Model([input_kinematic, input_emg], output)
     model.summary()
-    adam = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=1e-6, amsgrad=True)
+    lr = 0.001 if not fine_tune else 0.0005
+    adam = Adam(lr=lr, beta_1=0.9, beta_2=0.999, epsilon=None, decay=1e-6, amsgrad=True)
     model.compile(optimizer=adam, loss='mean_absolute_error', metrics=['mae'])
 
     return model

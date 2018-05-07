@@ -3,7 +3,7 @@ import numpy as np
 
 class NTMCell():
     def __init__(self, rnn_size, memory_size, memory_vector_dim, read_head_num, write_head_num,
-                 addressing_mode='content_and_loaction', shift_range=1, reuse=False, output_dim=None):
+                 addressing_mode='content_and_loaction', shift_range=1, reuse=False, output_dim=None, batch_size=16):
         self.rnn_size = rnn_size
         self.memory_size = memory_size
         self.memory_vector_dim = memory_vector_dim
@@ -15,6 +15,8 @@ class NTMCell():
         self.step = 0
         self.output_dim = output_dim
         self.shift_range = shift_range
+
+        self.state = self.zero_state(batch_size, tf.float32)
 
     def __call__(self, x, prev_state):
         prev_read_vector_list = prev_state['read_vector_list']      # read vector in Sec 3.1 (the content that is
@@ -90,18 +92,20 @@ class NTMCell():
             add_vector = tf.expand_dims(tf.tanh(erase_add_list[i * 2 + 1]), axis=1)
             M = M * (tf.ones(M.get_shape()) - tf.matmul(w, erase_vector)) + tf.matmul(w, add_vector)
 
-        # controller_output -> NTM output
+        # # controller_output -> NTM output
 
-        if not self.output_dim:
-            output_dim = x.get_shape()[1]
-        else:
-            output_dim = self.output_dim
-        with tf.variable_scope("o2o", reuse=(self.step > 0) or self.reuse):
-            o2o_w = tf.get_variable('o2o_w', [controller_output.get_shape()[1], output_dim],
-                                    initializer=tf.random_normal_initializer(mean=0.0, stddev=0.5))
-            o2o_b = tf.get_variable('o2o_b', [output_dim],
-                                    initializer=tf.random_normal_initializer(mean=0.0, stddev=0.5))
-            NTM_output = tf.nn.xw_plus_b(controller_output, o2o_w, o2o_b)
+        # if not self.output_dim:
+        #     output_dim = x.get_shape()[1]
+        # else:
+        #     output_dim = self.output_dim
+        # with tf.variable_scope("o2o", reuse=(self.step > 0) or self.reuse):
+        #     o2o_w = tf.get_variable('o2o_w', [controller_output.get_shape()[1], output_dim],
+        #                             initializer=tf.random_normal_initializer(mean=0.0, stddev=0.5))
+        #     o2o_b = tf.get_variable('o2o_b', [output_dim],
+        #                             initializer=tf.random_normal_initializer(mean=0.0, stddev=0.5))
+        #     NTM_output = tf.nn.xw_plus_b(controller_output, o2o_w, o2o_b)
+
+        NTM_output = controller_output
 
         state = {
             'controller_state': controller_state,
@@ -122,15 +126,15 @@ class NTMCell():
 
         k = tf.expand_dims(k, axis=2)
         inner_product = tf.matmul(prev_M, k)
-        k_norm = tf.sqrt(tf.reduce_sum(tf.square(k), axis=1, keep_dims=True))
-        M_norm = tf.sqrt(tf.reduce_sum(tf.square(prev_M), axis=2, keep_dims=True))
+        k_norm = tf.sqrt(tf.reduce_sum(tf.square(k), axis=1, keepdims=True))
+        M_norm = tf.sqrt(tf.reduce_sum(tf.square(prev_M), axis=2, keepdims=True))
         norm_product = M_norm * k_norm
         K = tf.squeeze(inner_product / (norm_product + 1e-8))                   # eq (6)
 
         # Calculating w^c
 
         K_amplified = tf.exp(tf.expand_dims(beta, axis=1) * K)
-        w_c = K_amplified / tf.reduce_sum(K_amplified, axis=1, keep_dims=True)  # eq (5)
+        w_c = K_amplified / tf.reduce_sum(K_amplified, axis=1, keepdims=True)  # eq (5)
 
         if self.addressing_mode == 'content':                                   # Only focus on content
             return w_c
