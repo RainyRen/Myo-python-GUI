@@ -3,24 +3,24 @@
 The Script are writen in python 3
 """
 # # ===== build-in library =====
-import pdb
+from collections import deque
 import time
 import yaml
 import json
 import math
-from collections import deque
 
 # # ===== third party library =====
-import socket
-import zmq
 from PyQt5.QtCore import QThread, QMutex, QMutexLocker, pyqtSignal
-import numpy as np
 from keras.models import load_model
 from sklearn.externals import joblib
+import socket
+import zmq
+import numpy as np
+import tensorflow as tf
 
 # # ===== own library =====
-import myo
 from myo_listener import Listener, ArmAngle2
+import myo
 
 
 class MyoListen(QThread):
@@ -273,7 +273,7 @@ class MyoListen(QThread):
 
             kinematic_list = arm_angle + gyr + acc
 
-            # # ========= linear model =========
+            # # ========================================== linear models ==============================================
             # emg_list = [channel / 60 for single_emg in self.device_data['emg'] for channel in single_emg]
             # lin_input = np.asarray(kinematic_list + emg_list)
             #
@@ -285,12 +285,11 @@ class MyoListen(QThread):
             # estimate_angle_deg = list(map(math.degrees, self._lin_result))
             # self.device_data['estimate_angle'] = list(map(lambda x: round(x, 2), estimate_angle_deg))
             # print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')
-            # # ================================
-            # # ========== deep mode ===========
+            # # =======================================================================================================
+            # # ========================================== keras models ===============================================
             emg_features_mag_3d = np.abs(emg_features)
 
             self._kinematic_window.append(kinematic_list)
-            # self._emg_window.append(self.device_data['emg'][0] + self.device_data['emg'][1])
             self._emg_window.append(emg_features_mag_3d)
 
             if len(self._kinematic_window) == self._model_window_size:
@@ -303,7 +302,28 @@ class MyoListen(QThread):
                 self.device_data['estimate_angle'] = list(map(lambda x: round(x, 2), estimate_angle_deg))
 
                 print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')
-            # # ==================================
+            # # =======================================================================================================
+            # # ========================================= tf models ===================================================
+            # self._kinematic_window.append(kinematic_list)
+            # self._emg_window.append(self.device_data['emg'][0] + self.device_data['emg'][1])
+            #
+            # if len(self._kinematic_window) == self._model_window_size:
+            #     input_kinematic = np.asarray(self._kinematic_window)[np.newaxis, ...]
+            #     input_emg = np.asarray(self._emg_window)[np.newaxis, ...]
+            #     input_emg = input_emg / 60.0        # # normalize EMG signal
+            #
+            #     self._x_label[:, 1:self._useful_label_num + 1, :] = input_kinematic[:, -6:, :4]
+            #
+            #     feed_dict = {
+            #         self.graph_node['x']: np.concatenate((input_kinematic, input_emg), axis=-1),
+            #         self.graph_node['x_label']: self._x_label
+            #     }
+            #     estimate_angle_rad = self.estimator.run(self.graph_node['o'], feed_dict=feed_dict)
+            #     estimate_angle_deg = np.degrees(estimate_angle_rad).ravel().tolist()
+            #     self.device_data['estimate_angle'] = list(map(lambda x: round(x, 2), estimate_angle_deg))
+            #
+            #     print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')
+            # # =======================================================================================================
         else:
             self.device_data['estimate_angle'] = [0., 0., 0., 0.]
 
@@ -347,27 +367,52 @@ class MyoListen(QThread):
                 self.get_arm_angle_signal = False
 
     def arm_calibration(self, init_angle):
+        """
+        calibrate arm angle to initial value which we can desire
+        :param init_angle: initial angle for calibration
+        """
+        # # ===== kalman filter =====
         # self.arm_angle.calibration(self.device_data['orientation'])
+        # # =========================
+        # # ===== complementary filter =====
         self.arm_angle.calibration(self.device_data['rpy'], init_angle)
+        # # ================================
 
     def get_estimate_angle(self, is_get, model_path=None):
         with QMutexLocker(self.mutex):
             if is_get:
                 with open(str(model_path / 'config.yml'), 'r') as model_config_file:
                     model_config = yaml.load(model_config_file)
+                    # # ================================ for keras and traditional models =============================
                     self._model_window_size = model_config['time_length']
+                    # # ==================================== for tf models ============================================
+                    # self._model_window_size = model_config['seq_length']
+                    # # ===============================================================================================
 
                 self._kinematic_window = deque(maxlen=self._model_window_size)
                 self._emg_window = deque(maxlen=self._model_window_size)
 
-                # # ========== keras model ==========
-                self.estimator = load_model(str(model_path / 'rnn_best.h5'))
-                self.estimator._make_predict_function()
-                # # =================================
-                # # ========= linear model ===========
+                # # ====================================== linear models ==============================================
                 # self.estimator = joblib.load(str(model_path / 'lin_model.p'))
                 # self._lin_result = [0., 0., 0., 0.]
-                # # ==================================
+                # # ===================================================================================================
+                # # ====================================== keras models ===============================================
+                self.estimator = load_model(str(model_path / 'rnn_best.h5'))
+                self.estimator._make_predict_function()
+                # # ===================================================================================================
+                # # ====================================== tf models ==================================================
+                # graph = self._load_graph(str(model_path / 'frozen_model2.pb'))
+                # self.graph_node = {
+                #     'x': graph.get_tensor_by_name('prefix/Placeholder:0'),
+                #     'x_label': graph.get_tensor_by_name('prefix/Placeholder_1:0'),
+                #     'o': graph.get_tensor_by_name('prefix/output:0')
+                # }
+                #
+                # self._x_label = np.zeros((1, model_config['seq_length'], 4))
+                # self._useful_label_num = self._model_window_size - model_config['future_time']
+                #
+                # self.estimator = tf.InteractiveSession(graph=graph)
+                # # ===================================================================================================
 
                 self.estimate_signal = True
 
@@ -376,6 +421,21 @@ class MyoListen(QThread):
                 self.estimator = None
                 self._kinematic_window = None
                 self._emg_window = None
+
+    @staticmethod
+    def _load_graph(frozen_graph_filename):
+        """
+        load tf model graph and return it
+        :param str frozen_graph_filename: tf frozen model name
+        """
+        with tf.gfile.GFile(frozen_graph_filename, "rb") as f:
+            graph_def = tf.GraphDef()
+            graph_def.ParseFromString(f.read())
+
+        with tf.Graph().as_default() as graph:
+            tf.import_graph_def(graph_def, name="prefix")
+
+        return graph
 
 
 if __name__ == '__main__':

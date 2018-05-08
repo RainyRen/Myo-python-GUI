@@ -1,4 +1,3 @@
-# import pdb
 import os
 import sys
 import yaml
@@ -344,6 +343,9 @@ class TableWidget(QWidget):
         self.apply_bnt.clicked.connect(self.apply_setting)
 
     def _init_display_content(self):
+        """
+        change GUI appearance (button state, value, etc..)
+        """
         self.socket_tcp_mode.setChecked(self.config_dict['tcp_mode'])
         self.socket_udp_mode.setChecked(not self.config_dict['tcp_mode'])
         self.req_radio_bnt.setChecked(self.config_dict['req_mode'])
@@ -403,7 +405,10 @@ class TableWidget(QWidget):
         self.config_dict['model_path'] = self.estimator_model_path.text()
 
     def update_msg(self, receive_msg):
-        # print("got msg!!!")
+        """
+        show message on GUI first page
+        :param str receive_msg: received message which we want to show at GUI
+        """
         self.myo_msg.append(receive_msg)
 
     def connect_myo(self):
@@ -454,6 +459,9 @@ class TableWidget(QWidget):
             self._close_connect_bnt()
 
     def _close_connect_bnt(self):
+        """
+        change push button state when close myo connect
+        """
         self.myo_connect_bnt.setIcon(QIcon(str(IMAGE_PATH / "connect.png")))
         self.tcp_send_bnt.setChecked(False)
         self.tcp_send_bnt.setDisabled(True)

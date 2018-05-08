@@ -30,7 +30,7 @@ def main():
 
     # # ===== load model config from saved config file =====
     if args.mode == 'test_reg':
-        print('\ntest keras regression model')
+        print('\ntest keras regression model -- ', MODEL_DIR_NAME)
 
         model_path = Path(args.save_dir) / MODEL_DIR_NAME
         with open(model_path / 'config.yml') as config_file:
@@ -49,7 +49,7 @@ def main():
         test_cls(test_config)
 
     elif args.mode == 'test_trad':
-        print('\ntest traditional model')
+        print('\ntest traditional model -- ', MODEL_DIR_NAME)
 
         model_path = Path(args.save_dir) / MODEL_DIR_NAME
         with open(model_path / 'config.yml') as config_file:
@@ -59,7 +59,7 @@ def main():
         test_trad(test_config)
 
     elif args.mode == 'test_mann':
-        print('\ntest mann model')
+        print('\ntest mann model -- ', args.mann_dir)
 
         model_path = Path(args.mann_dir)
         with open(model_path / 'config.yml') as config_file:
@@ -307,21 +307,30 @@ def _plot_single_fig(target_deg, estimate_deg, orbit_deg, dt=0.05):
     # # ----- plot single axis -----
     plt.figure(0)
     plt.subplot(411)
-    plt.plot(x, orbit_deg[:show_interval, 0], 'g-')
-    plt.plot(x, target_deg[:show_interval, 0], 'k-')
-    plt.plot(x, estimate_deg[:show_interval, 0], 'r--')
+    plt.plot(x, orbit_deg[:show_interval, 0], 'g-', label='current')
+    plt.plot(x, target_deg[:show_interval, 0], 'k-', label='target')
+    plt.plot(x, estimate_deg[:show_interval, 0], 'r--', label='predict')
+    plt.legend(loc=0)
+    plt.ylabel('degree')
     plt.subplot(412)
-    plt.plot(x, orbit_deg[:show_interval, 1], 'g-')
-    plt.plot(x, target_deg[:show_interval, 1], 'k-')
-    plt.plot(x, estimate_deg[:show_interval, 1], 'r--')
+    plt.plot(x, orbit_deg[:show_interval, 1], 'g-', label='current')
+    plt.plot(x, target_deg[:show_interval, 1], 'k-', label='target')
+    plt.plot(x, estimate_deg[:show_interval, 1], 'r--', label='predict')
+    plt.legend(loc=0)
+    plt.ylabel('degree')
     plt.subplot(413)
-    plt.plot(x, orbit_deg[:show_interval, 2], 'g-')
-    plt.plot(x, target_deg[:show_interval, 2], 'k-')
-    plt.plot(x, estimate_deg[:show_interval, 2], 'r--')
+    plt.plot(x, orbit_deg[:show_interval, 2], 'g-', label='current')
+    plt.plot(x, target_deg[:show_interval, 2], 'k-', label='target')
+    plt.plot(x, estimate_deg[:show_interval, 2], 'r--', label='predict')
+    plt.legend(loc=0)
+    plt.ylabel('degree')
     plt.subplot(414)
-    plt.plot(x, orbit_deg[:show_interval, 3], 'g-')
-    plt.plot(x, target_deg[:show_interval, 3], 'k-')
-    plt.plot(x, estimate_deg[:show_interval, 3], 'r--')
+    plt.plot(x, orbit_deg[:show_interval, 3], 'g-', label='current')
+    plt.plot(x, target_deg[:show_interval, 3], 'k-', label='target')
+    plt.plot(x, estimate_deg[:show_interval, 3], 'r--', label='predict')
+    plt.legend(loc=0)
+    plt.xlabel('time')
+    plt.ylabel('degree')
 
 
 def _plot_3d_fig(target_rad, estimate_rad, orbit_rad):
@@ -332,10 +341,14 @@ def _plot_3d_fig(target_rad, estimate_rad, orbit_rad):
     fig3d = plt.figure(1)
     ax = Axes3D(fig3d)
 
-    ax.plot(x_or, y_or, z_or, 'g-')
-    ax.plot(x_gt, y_gt, z_gt, 'b-')
-    ax.plot(x_es, y_es, z_es, 'r--')
+    ax.plot(x_or, y_or, z_or, 'g-', label='current')
+    ax.plot(x_gt, y_gt, z_gt, 'b-', label='target')
+    ax.plot(x_es, y_es, z_es, 'r--', label='predict')
+    ax.set_xlabel('X (cm)')
+    ax.set_ylabel('Y (cm)')
+    ax.set_zlabel('Z (cm)')
 
+    plt.legend(loc=0)
     plt.show()
 
 

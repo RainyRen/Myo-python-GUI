@@ -3,7 +3,7 @@ import numpy as np
 
 
 class NTMOneShotLearningModel:
-    def __init__(self, args):
+    def __init__(self, args, inference=False):
         input_dim = 32 if args.emg_raw else 176
 
         self.x = tf.placeholder(
@@ -47,8 +47,11 @@ class NTMOneShotLearningModel:
         self.state_list = [state]   # For debugging
         self.o = []
         for t in range(args.seq_length):
-            output, state = cell(tf.concat([self.x[:, t, :], self.x_label[:, t, :]], axis=1), state)
-            # output, state = cell(self.y[:, t, :], state)
+            if inference and t > args.seq_length - args.future_time:
+                output, state = cell(tf.concat([self.x[:, t, :], self.o[-1]], axis=1), state)
+            else:
+                output, state = cell(tf.concat([self.x[:, t, :], self.x_label[:, t, :]], axis=1), state)
+
             with tf.variable_scope("o2o", reuse=(t > 0)):
                 o2o_w = tf.get_variable('o2o_w', [output.get_shape()[1], args.output_dim],
                                         initializer=tf.random_uniform_initializer(minval=-0.1, maxval=0.1))
