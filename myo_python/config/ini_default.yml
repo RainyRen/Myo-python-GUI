@@ -19,4 +19,4 @@ send_save:
 socket_address: 127.0.0.1:5555
 tcp_mode: false
 window_size: 19
-model_path: 'multi2one_k'
+model_path: 'mann_s10_h2_f4'

@@ -291,6 +291,16 @@ class TableWidget(QWidget):
 
         # # ===========================================================================================================
         # # ========================================= Create third tab ================================================
+        # # arm side choose
+        self.arm_side_group = QButtonGroup(self.tab_calibrate)
+        self.arm_side_auto = QRadioButton("Auto")
+        self.arm_side_auto.setChecked(True)
+        self.arm_side_left = QRadioButton("Left")
+        self.arm_side_right = QRadioButton('Right')
+        self.arm_side_group.addButton(self.arm_side_auto)
+        self.arm_side_group.addButton(self.arm_side_left)
+        self.arm_side_group.addButton(self.arm_side_right)
+
         self.cal_init_ha = QLineEdit("0.0")
         self.cal_init_ha.setAlignment(Qt.AlignCenter)
         self.cal_init_sf = QLineEdit("0.0")
@@ -300,7 +310,19 @@ class TableWidget(QWidget):
         self.cal_init_ef = QLineEdit("0.0")
         self.cal_init_ef.setAlignment(Qt.AlignCenter)
 
-        # # add layout
+        # # add arm side choose layout
+        arm_side_item_layout = QHBoxLayout()
+        arm_side_item_layout.addWidget(self.arm_side_auto)
+        arm_side_item_layout.addWidget(self.arm_side_left)
+        arm_side_item_layout.addWidget(self.arm_side_right)
+
+        arm_side_layout = QVBoxLayout()
+        arm_side_layout.addStretch()
+        arm_side_layout.addWidget(QLabel("Arm Side:"))
+        arm_side_layout.addLayout(arm_side_item_layout)
+        arm_side_layout.addStretch()
+
+        # # add calibration initial angle add layout
         cal_angle_layout = QGridLayout()
         cal_angle_layout.addWidget(QLabel("HA Initial Angle(degrees):"), 0, 0)
         cal_angle_layout.addWidget(self.cal_init_ha, 0, 1)
@@ -313,6 +335,7 @@ class TableWidget(QWidget):
 
         # # organize layout
         self.tab_calibrate.layout = QVBoxLayout(self)
+        self.tab_calibrate.layout.addLayout(arm_side_layout)
         self.tab_calibrate.layout.addLayout(cal_angle_layout)
         self.tab_calibrate.setLayout(self.tab_calibrate.layout)
 
@@ -403,6 +426,13 @@ class TableWidget(QWidget):
             self.config_dict['send_save'].append('myo_status')
 
         self.config_dict['model_path'] = self.estimator_model_path.text()
+
+        if self.arm_side_left.isChecked():
+            self.config_dict['arm_side'] = 'left'
+        elif self.arm_side_right.isChecked():
+            self.config_dict['arm_side'] = 'right'
+        else:
+            self.config_dict['arm_side'] = 'auto'
 
     def update_msg(self, receive_msg):
         """

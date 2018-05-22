@@ -77,6 +77,7 @@ class MyoListen(QThread):
         )
         self.device_data = dict()
         self.devices_num = 0
+        self.devices_arm = ini_config['arm_side']
         # # ===== thread multi task =====
         self.stop_signal = True
 
@@ -118,6 +119,9 @@ class MyoListen(QThread):
 
             for device_id, device_arm in enumerate(self.listener.arm):
                 print('Myo {} wear on {}'.format(device_id, device_arm))
+                if device_id == 0 and self.devices_arm == 'auto':
+                    self.devices_arm = str(device_arm)[6:-1] if device_arm is not None else 'left'      # type: str
+
                 self.msg_signal.emit('Myo {} wear on {}'.format(device_id, device_arm))
 
             print("Start Dongle")
@@ -247,10 +251,18 @@ class MyoListen(QThread):
         self.device_data['orientation'] = self.listener.get_orientation
         self.device_data['acceleration'] = self.listener.get_acceleration
         self.device_data['gyroscope'] = self.listener.get_gyroscope
+
+        if self.devices_arm == 'right':
+            self.device_data['gyroscope'][0][1] = -self.device_data['gyroscope'][0][1]
+            self.device_data['gyroscope'][0][2] = -self.device_data['gyroscope'][0][2]
+            self.device_data['gyroscope'][1][1] = -self.device_data['gyroscope'][1][1]
+            self.device_data['gyroscope'][1][2] = -self.device_data['gyroscope'][1][2]
+
+            self.device_data['acceleration'][0][0] = -self.device_data['acceleration'][0][0]
+            self.device_data['acceleration'][1][0] = -self.device_data['acceleration'][1][0]
+
         emg_features = self.listener.get_emg_features
         # self.device_data['myo_status'] = self.listener.get_device_state
-        # print('\r                 ', end='')
-        # print('\r{:.2f}, {:.2f}, {:.2f}'.format(*self.device_data['rpy'][0]), end='')
 
         if self.get_arm_angle_signal:
             # self.device_data['arm_angle'] = self.arm_angle.cal_arm_angle(
@@ -287,42 +299,42 @@ class MyoListen(QThread):
             # print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')
             # # =======================================================================================================
             # # ========================================== keras models ===============================================
-            emg_features_mag_3d = np.abs(emg_features)
-
-            self._kinematic_window.append(kinematic_list)
-            self._emg_window.append(emg_features_mag_3d)
-
-            if len(self._kinematic_window) == self._model_window_size:
-                input_kinematic = np.asarray(self._kinematic_window)[np.newaxis, ...]
-                input_emg = np.asarray(self._emg_window)[np.newaxis, ..., np.newaxis]
-                input_emg = input_emg / 60.0        # # normalize EMG signal
-
-                estimate_angle_rad = self.estimator.predict_on_batch([input_kinematic, input_emg])
-                estimate_angle_deg = np.degrees(estimate_angle_rad).ravel().tolist()
-                self.device_data['estimate_angle'] = list(map(lambda x: round(x, 2), estimate_angle_deg))
-
-                print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')
-            # # =======================================================================================================
-            # # ========================================= tf models ===================================================
+            # emg_features_mag_3d = np.abs(emg_features)
+            #
             # self._kinematic_window.append(kinematic_list)
-            # self._emg_window.append(self.device_data['emg'][0] + self.device_data['emg'][1])
+            # self._emg_window.append(emg_features_mag_3d)
             #
             # if len(self._kinematic_window) == self._model_window_size:
             #     input_kinematic = np.asarray(self._kinematic_window)[np.newaxis, ...]
-            #     input_emg = np.asarray(self._emg_window)[np.newaxis, ...]
+            #     input_emg = np.asarray(self._emg_window)[np.newaxis, ..., np.newaxis]
             #     input_emg = input_emg / 60.0        # # normalize EMG signal
             #
-            #     self._x_label[:, 1:self._useful_label_num + 1, :] = input_kinematic[:, -6:, :4]
-            #
-            #     feed_dict = {
-            #         self.graph_node['x']: np.concatenate((input_kinematic, input_emg), axis=-1),
-            #         self.graph_node['x_label']: self._x_label
-            #     }
-            #     estimate_angle_rad = self.estimator.run(self.graph_node['o'], feed_dict=feed_dict)
+            #     estimate_angle_rad = self.estimator.predict_on_batch([input_kinematic, input_emg])
             #     estimate_angle_deg = np.degrees(estimate_angle_rad).ravel().tolist()
             #     self.device_data['estimate_angle'] = list(map(lambda x: round(x, 2), estimate_angle_deg))
             #
             #     print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')
+            # # =======================================================================================================
+            # # ========================================= tf models ===================================================
+            self._kinematic_window.append(kinematic_list)
+            self._emg_window.append(self.device_data['emg'][0] + self.device_data['emg'][1])
+
+            if len(self._kinematic_window) == self._model_window_size:
+                input_kinematic = np.asarray(self._kinematic_window)[np.newaxis, ...]
+                input_emg = np.asarray(self._emg_window)[np.newaxis, ...]
+                input_emg = input_emg / 60.0        # # normalize EMG signal
+
+                self._x_label[:, 1:self._useful_label_num + 1, :] = input_kinematic[:, -6:, :4]
+
+                feed_dict = {
+                    self.graph_node['x']: np.concatenate((input_kinematic, input_emg), axis=-1),
+                    self.graph_node['x_label']: self._x_label
+                }
+                estimate_angle_rad = self.estimator.run(self.graph_node['o'], feed_dict=feed_dict)
+                estimate_angle_deg = np.degrees(estimate_angle_rad).ravel().tolist()
+                self.device_data['estimate_angle'] = list(map(lambda x: round(x, 2), estimate_angle_deg))
+
+                print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')
             # # =======================================================================================================
         else:
             self.device_data['estimate_angle'] = [0., 0., 0., 0.]
@@ -359,6 +371,7 @@ class MyoListen(QThread):
 
                 self.arm_angle = ArmAngle2(
                     self.device_data['rpy'],
+                    arm_side=self.devices_arm,
                     compensate_k=arm_compensate_k, use_filter=self.imu_filter, dt=(1/self.send_fs)
                 )
                 self.get_arm_angle_signal = True
@@ -384,9 +397,9 @@ class MyoListen(QThread):
                 with open(str(model_path / 'config.yml'), 'r') as model_config_file:
                     model_config = yaml.load(model_config_file)
                     # # ================================ for keras and traditional models =============================
-                    self._model_window_size = model_config['time_length']
+                    # self._model_window_size = model_config['time_length']
                     # # ==================================== for tf models ============================================
-                    # self._model_window_size = model_config['seq_length']
+                    self._model_window_size = model_config['seq_length']
                     # # ===============================================================================================
 
                 self._kinematic_window = deque(maxlen=self._model_window_size)
@@ -397,21 +410,21 @@ class MyoListen(QThread):
                 # self._lin_result = [0., 0., 0., 0.]
                 # # ===================================================================================================
                 # # ====================================== keras models ===============================================
-                self.estimator = load_model(str(model_path / 'rnn_best.h5'))
-                self.estimator._make_predict_function()
+                # self.estimator = load_model(str(model_path / 'rnn_best.h5'))
+                # self.estimator._make_predict_function()
                 # # ===================================================================================================
                 # # ====================================== tf models ==================================================
-                # graph = self._load_graph(str(model_path / 'frozen_model2.pb'))
-                # self.graph_node = {
-                #     'x': graph.get_tensor_by_name('prefix/Placeholder:0'),
-                #     'x_label': graph.get_tensor_by_name('prefix/Placeholder_1:0'),
-                #     'o': graph.get_tensor_by_name('prefix/output:0')
-                # }
-                #
-                # self._x_label = np.zeros((1, model_config['seq_length'], 4))
-                # self._useful_label_num = self._model_window_size - model_config['future_time']
-                #
-                # self.estimator = tf.InteractiveSession(graph=graph)
+                graph = self._load_graph(str(model_path / 'frozen_model2.pb'))
+                self.graph_node = {
+                    'x': graph.get_tensor_by_name('prefix/Placeholder:0'),
+                    'x_label': graph.get_tensor_by_name('prefix/Placeholder_1:0'),
+                    'o': graph.get_tensor_by_name('prefix/output:0')
+                }
+
+                self._x_label = np.zeros((1, model_config['seq_length'], 4))
+                self._useful_label_num = self._model_window_size - model_config['future_time']
+
+                self.estimator = tf.InteractiveSession(graph=graph)
                 # # ===================================================================================================
 
                 self.estimate_signal = True

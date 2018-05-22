@@ -311,7 +311,7 @@ class ArmAngle(object):
 
 
 class ArmAngle2(object):
-    def __init__(self, rpys, compensate_k=None, use_filter=True, dt=0.05):
+    def __init__(self, rpys, arm_side='left', compensate_k=None, use_filter=True, dt=0.05):
         """
         implementation of complementary filter, contain muscle deformation compensate method
         only using linear compensate method
@@ -327,6 +327,7 @@ class ArmAngle2(object):
         :param float dt: sampling time
         """
         self.init_angle = None
+        self.arm_side = arm_side
         self.upper_arm_bias = (0., 0., 0.)
         self.forearm_bias = (0., 0., 0.)
         self.compensate_k = compensate_k if compensate_k is not None else (0., 0., 0., 0.)
@@ -354,6 +355,11 @@ class ArmAngle2(object):
         :return: None
         """
         self.forearm_bias, self.upper_arm_bias = rpys
+        # if self.arm_side == 'right':
+        #     self.forearm_bias[1] = -self.forearm_bias[1]
+        #     self.upper_arm_bias[1] = -self.upper_arm_bias[1]
+        #     self.upper_arm_bias[2] = -self.upper_arm_bias[2]
+
         self.init_angle = init_angle
 
         if self.use_filter:
@@ -369,6 +375,10 @@ class ArmAngle2(object):
         :return tuple: four current arm angle
         """
         forearm, upper_arm = rpys
+        if self.arm_side == 'right':
+            forearm[1] = -forearm[1]
+            upper_arm[1] = -upper_arm[1]
+            upper_arm[2] = -upper_arm[2]
 
         self.angle_2 = upper_arm[2] - self.upper_arm_bias[2] + self.init_angle[0]
         self.angle_5 = upper_arm[1] - self.upper_arm_bias[1] + self.init_angle[1]
