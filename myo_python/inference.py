@@ -25,7 +25,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default="test_reg", help='test_reg or test_cls or test_trad or test_mann')
     parser.add_argument('--save_dir', default='./exp')
-    parser.add_argument('--mann_dir', default='./exp/mann_s10_h2_f4')
+    parser.add_argument('--mann_dir', default='./exp/mann_s10_h2_f4_M')
     args = parser.parse_args()
 
     # # ===== load model config from saved config file =====
@@ -239,12 +239,15 @@ def test_mann(args, config):
     batch_size = 1  # config['batch_size']
     n_batch = ts_target.shape[0] // batch_size
     total_ts_num = n_batch * batch_size
+    useful_label_num = config['seq_length'] - config['future_time']
 
     ts_orbit = ts_orbit[:total_ts_num]
     ts_target = ts_target[:total_ts_num]
 
     ts_x = np.concatenate((ts_kinematic, ts_emg), axis=-1)
-    ts_x_label = np.concatenate([np.zeros(shape=[ts_target.shape[0], 1, 4]), ts_target[:, :-1, :]], axis=1)
+    # ts_x_label = np.concatenate([np.zeros(shape=[ts_target.shape[0], 1, 4]), ts_target[:, :-1, :]], axis=1)
+    ts_x_label = np.zeros((ts_orbit.shape[0], config['seq_length'], 4))
+    ts_x_label[:, 1:useful_label_num + 1, :] = ts_kinematic[:, -useful_label_num:, :4]
 
     # # We launch a Session
     with tf.Session(graph=graph) as sess:
@@ -298,6 +301,25 @@ def _evaluate(target_deg, estimate_deg, orbit_deg):
     print("mae all: {:.2f}".format(mae_fake))
     print("2 axis mae: {:.2f}, 5 axis mae: {:.2f}, 6 axis mae: {:.2f}, 7 axis mae {:.2f}".format(*mae_fake_single))
     print("-------------------------------------------------------------")
+
+    # # plot error trend
+    window_size = 15
+    num = target_deg.shape[0] // window_size
+    indices_pool = [(i * window_size, (i + 1) * window_size) for i in range(num)]
+    mae_step = []
+    mae_all_step = []
+    for i in range(num // window_size):
+        s, e = indices_pool[i]
+        mae_step.append(list(map(mean_absolute_error, target_deg[s:e].T, estimate_deg[s:e].T)))
+        mae_all_step.append(mean_absolute_error(target_deg[s:e], estimate_deg[s:e]))
+
+    mae_trend = np.asarray(mae_step)
+    for i in range(4):
+        plt.subplot(5, 1, i + 1)
+        plt.plot(mae_trend[:, i])
+    plt.subplot(5, 1, 5)
+    plt.plot(mae_all_step)
+    plt.show()
 
 
 def _plot_single_fig(target_deg, estimate_deg, orbit_deg, dt=0.05):

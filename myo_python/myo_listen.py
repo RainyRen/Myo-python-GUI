@@ -324,14 +324,14 @@ class MyoListen(QThread):
                 input_emg = np.asarray(self._emg_window)[np.newaxis, ...]
                 input_emg = input_emg / 60.0        # # normalize EMG signal
 
-                self._x_label[:, 1:self._useful_label_num + 1, :] = input_kinematic[:, -6:, :4]
+                self._x_label[:, 1:self._useful_label_num + 1, :] = input_kinematic[:, -self._useful_label_num:, :4]
 
                 feed_dict = {
                     self.graph_node['x']: np.concatenate((input_kinematic, input_emg), axis=-1),
                     self.graph_node['x_label']: self._x_label
                 }
                 estimate_angle_rad = self.estimator.run(self.graph_node['o'], feed_dict=feed_dict)
-                estimate_angle_deg = np.degrees(estimate_angle_rad).ravel().tolist()
+                estimate_angle_deg = np.degrees(estimate_angle_rad[0, -1, :]).ravel().tolist()
                 self.device_data['estimate_angle'] = list(map(lambda x: round(x, 2), estimate_angle_deg))
 
                 print(' | {}, {}, {}, {}'.format(*self.device_data['estimate_angle']), end='')

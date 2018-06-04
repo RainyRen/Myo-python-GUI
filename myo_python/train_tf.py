@@ -31,7 +31,7 @@ def main():
     parser.add_argument('--model', default="MANN", help='LSTM, MANN, MANN2 or NTM')
     parser.add_argument('--read_head_num', default=2)
     parser.add_argument('--batch_size', default=32)
-    parser.add_argument('--num_epoches', default=300000)
+    parser.add_argument('--num_epoches', default=500000)
     parser.add_argument('--learning_rate', default=1e-3)
     parser.add_argument('--rnn_size', default=32)
     parser.add_argument('--rnn_num_layers', default=1)
@@ -94,10 +94,10 @@ def train_tf_reg(args):
 
     print("organising materials...\n")
     tr_data_generator = train_data_loader.data_generator(
-        get_emg_raw=args.emg_raw, emg_3d=False, batch_size=args.batch_size, shuffle=False
+        get_emg_raw=args.emg_raw, emg_3d=False, batch_size=args.batch_size, shuffle=True
     )
     val_data_generator = val_data_loader.data_generator(
-        get_emg_raw=args.emg_raw, emg_3d=False, batch_size=args.batch_size, shuffle=False
+        get_emg_raw=args.emg_raw, emg_3d=False, batch_size=args.batch_size, shuffle=True
     )
 
     # # check folder exist, if not create new one
@@ -127,7 +127,7 @@ def train_tf_reg(args):
             tr_kinematic, tr_emg, tr_target = tr_data
             x = np.concatenate((tr_kinematic, tr_emg), axis=-1)
             x_label = np.zeros((args.batch_size, args.seq_length, 4))
-            x_label[:, 1:usefule_label_num + 1, :] = tr_target[:, 0:usefule_label_num, :]
+            x_label[:, 1:usefule_label_num + 1, :] = tr_kinematic[:, -usefule_label_num:, :4]
             # x_label = np.concatenate([np.zeros((args.batch_size, 1, 4)), tr_target[:, :-1, :]], axis=1)
             y = tr_target
 
@@ -141,7 +141,7 @@ def train_tf_reg(args):
                 val_kinematic, val_emg, val_target = val_data
                 x_val = np.concatenate((val_kinematic, val_emg), axis=-1)
                 x_label_val = np.zeros((args.batch_size, args.seq_length, 4))
-                x_label_val[:, 1:usefule_label_num + 1, :] = val_target[:, 0:usefule_label_num, :]
+                x_label_val[:, 1:usefule_label_num + 1, :] = val_kinematic[:, -usefule_label_num:, :4]
                 # x_label_val = np.concatenate([np.zeros((args.batch_size, 1, 4)), val_target[:, :-1, :]], axis=1)
                 y_val = val_target
 
@@ -235,7 +235,7 @@ def freeze_graph2(model_dir, output_node_names='output'):
     output_graph = str(model_dir.parent / "frozen_model2.pb")
 
     with tf.Session() as sess:
-        saver.restore(sess, str(model_dir / 'model.tfmodel-295000'))
+        saver.restore(sess, str(model_dir / 'model.tfmodel-495000'))
 
         output_graph_def = tf.graph_util.convert_variables_to_constants(
             sess,
