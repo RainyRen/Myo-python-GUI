@@ -17,7 +17,7 @@ from utils.data_io import DataManager, angle2position
 UPPER_ARM_LEN = 32      # # unit: cm
 FOREARM_LEN = 33        # # unit: cm
 
-MODEL_DIR_NAME = "JLW_stft_f4_dueling"
+MODEL_DIR_NAME = "JLW_trad_f4_R/ze"
 # # ==================================
 
 
@@ -25,7 +25,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default="test_reg", help='test_reg or test_cls or test_trad or test_mann')
     parser.add_argument('--save_dir', default='./exp')
-    parser.add_argument('--mann_dir', default='./exp/mann_s10_h2_f4_M')
+    parser.add_argument('--mann_dir', default='./exp/mann_10_h2_r32_one_f4')
     args = parser.parse_args()
 
     # # ===== load model config from saved config file =====
@@ -260,7 +260,9 @@ def test_mann(args, config):
             output.append(sess.run(prediction, feed_dict=feed_dict))
 
     result = np.concatenate(output, axis=0)
-    result = result[:, -1, :]
+
+    if not config['one_target']:
+        result = result[:, -1, :]
     ts_target = ts_target[:, -1, :]
 
     ts_orbit_degrees = np.degrees(ts_orbit)

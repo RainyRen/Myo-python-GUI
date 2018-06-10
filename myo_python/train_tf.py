@@ -28,10 +28,11 @@ def main():
     parser.add_argument('--future_time', default=4)
     parser.add_argument('--degree2rad', default=True)
     parser.add_argument('--emg_raw', default=True)
+    parser.add_argument('--one_target', default=True)
     parser.add_argument('--model', default="MANN", help='LSTM, MANN, MANN2 or NTM')
     parser.add_argument('--read_head_num', default=2)
     parser.add_argument('--batch_size', default=32)
-    parser.add_argument('--num_epoches', default=500000)
+    parser.add_argument('--num_epoches', default=300000)
     parser.add_argument('--learning_rate', default=1e-3)
     parser.add_argument('--rnn_size', default=32)
     parser.add_argument('--rnn_num_layers', default=1)
@@ -78,7 +79,7 @@ def train_tf_reg(args):
         separate_rate=0.,
         time_length=args.seq_length,
         future_time=args.future_time,
-        one_target=False,
+        one_target=args.one_target,
         degree2rad=args.degree2rad,
         use_direction=False
     )
@@ -87,7 +88,7 @@ def train_tf_reg(args):
         separate_rate=0.,
         time_length=args.seq_length,
         future_time=args.future_time,
-        one_target=False,
+        one_target=args.one_target,
         degree2rad=args.degree2rad,
         use_direction=False
     )
@@ -150,7 +151,10 @@ def train_tf_reg(args):
                 merged_summary = sess.run(model.learning_loss_summary, feed_dict=feed_dict)
                 train_writer.add_summary(merged_summary, b)
 
-                mae = mean_absolute_error(y_val[:, -1, :], output[:, -1, :])
+                if args.one_target:
+                    mae = mean_absolute_error(y_val[:, :], output[:, :])
+                else:
+                    mae = mean_absolute_error(y_val[:, -1, :], output[:, -1, :])
                 print('episode: {} -- loss: {} -- mae: {}'.format(b, learning_loss, mae))
 
             # # --------------------------------
@@ -235,7 +239,7 @@ def freeze_graph2(model_dir, output_node_names='output'):
     output_graph = str(model_dir.parent / "frozen_model2.pb")
 
     with tf.Session() as sess:
-        saver.restore(sess, str(model_dir / 'model.tfmodel-495000'))
+        saver.restore(sess, str(model_dir / 'model.tfmodel-295000'))
 
         output_graph_def = tf.graph_util.convert_variables_to_constants(
             sess,

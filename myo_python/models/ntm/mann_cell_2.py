@@ -2,7 +2,8 @@ import tensorflow as tf
 import numpy as np
 
 class MANNCell():
-    def __init__(self, rnn_size, memory_size, memory_vector_dim, head_num, gamma=0.95, k_strategy='separate'):
+    def __init__(self, rnn_size, memory_size, memory_vector_dim, head_num,
+                 gamma=0.95, k_strategy='separate',reuse=False, batch_size=32):
         self.rnn_size = rnn_size
         self.memory_size = memory_size
         self.memory_vector_dim = memory_vector_dim
@@ -11,6 +12,7 @@ class MANNCell():
         self.step = 0
         self.gamma = gamma
         self.k_strategy = k_strategy
+        self.reuse = reuse
 
         self.W_key = tf.Variable(
             tf.random_uniform([self.head_num, self.controller.output_size, self.memory_vector_dim], minval=-0.1, maxval=0.1)
@@ -30,6 +32,8 @@ class MANNCell():
         self.b_sigma = tf.Variable(
             tf.random_uniform([self.head_num, 1], minval=-0.1, maxval=0.1)
         )
+
+        self.state = self.zero_state(batch_size, tf.float32)
 
     def __call__(self, x, prev_state):
         r_tm1 = prev_state['r']
@@ -82,4 +86,3 @@ class MANNCell():
                 'M': tf.constant(np.ones([batch_size, self.memory_size, self.memory_vector_dim]) * 1e-6, dtype=tf.float32)
             }
             return state
-

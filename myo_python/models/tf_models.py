@@ -14,9 +14,13 @@ class NTMOneShotLearningModel:
             dtype=tf.float32,
             shape=[None, args.seq_length, args.output_dim]
         )
-        self.y = tf.placeholder(
-            dtype=tf.float32,
-            shape=[None, args.seq_length, args.output_dim])
+
+        if args.one_target:
+            self.y = tf.placeholder(dtype=tf.float32, shape=[None, args.output_dim])
+        else:
+            self.y = tf.placeholder(
+                dtype=tf.float32,
+                shape=[None, args.seq_length, args.output_dim])
 
         if args.model == 'LSTM':
             def rnn_cell(rnn_size):
@@ -37,7 +41,7 @@ class NTMOneShotLearningModel:
         elif args.model == 'MANN2':
             from .ntm import mann_cell_2 as mann_cell
             cell = mann_cell.MANNCell(args.rnn_size, args.memory_size, args.memory_vector_dim,
-                                      head_num=args.read_head_num)
+                                      head_num=args.read_head_num, batch_size=args.batch_size)
 
         else:
             raise ImportError("No such model")
@@ -63,7 +67,11 @@ class NTMOneShotLearningModel:
 
             self.o.append(output)
             self.state_list.append(state)
-        self.o = tf.stack(self.o, axis=1, name='output')
+        if args.one_target:
+            self.o = self.o[-1]
+            self.o = tf.identity(self.o, name='output')
+        else:
+            self.o = tf.stack(self.o, axis=1, name='output')
         self.state_list.append(state)
 
         eps = 1e-8
