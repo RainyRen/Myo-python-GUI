@@ -114,8 +114,11 @@ def test_reg(config):
     _evaluate(ts_target_degrees, result_degrees, ts_orbit_degrees)
     pdb.set_trace()
 
-    _plot_single_fig(ts_target_degrees[-800:-400], result_degrees[-800:-400], ts_orbit_degrees[-800:-400], dt)
-    _plot_3d_fig(ts_target[200:260], result[200:260], ts_orbit[200:260])
+    s, e = 180, 580
+    _plot_single_fig(ts_target_degrees[s:e], result_degrees[s:e], ts_orbit_degrees[s:e], dt)
+    _save_single_fig(ts_target_degrees[s:e], result_degrees[s:e], ts_orbit_degrees[s:e], dt)
+    s3d, e3d = 180, 240
+    _plot_3d_fig(ts_target[s3d:e3d], result[s3d:e3d], ts_orbit[s3d:e3d])
 
 
 def test_cls(config):
@@ -173,7 +176,7 @@ def test_trad(config):
     ts_orbit = ts_kinematic[:, -1, :4]
 
     # # ===== load model =====
-    lin = joblib.load(str(config['all_model_path'] / 'lin_model.p'))
+    lin = joblib.load(str(config['all_model_path'] / 'svr_model.p'))
 
     select_col = list(range(3, test_x.shape[-1]))
     result = list()
@@ -198,8 +201,12 @@ def test_trad(config):
     _evaluate(ts_target_degrees, result_degrees, ts_orbit_degrees)
     pdb.set_trace()
 
-    _plot_single_fig(ts_target_degrees[-800:-400], result_degrees[-800:-400], ts_orbit_degrees[-800:-400], dt=dt)
-    _plot_3d_fig(ts_target[200:260], result[200:260], ts_orbit[200:260])
+    s, e = 180, 580
+    _plot_single_fig(ts_target_degrees[s:e], result_degrees[s:e], ts_orbit_degrees[s:e], dt)
+    _save_single_fig(ts_target_degrees[s:e], result_degrees[s:e], ts_orbit_degrees[s:e], dt)
+    s3d, e3d = 180, 240
+    pdb.set_trace()
+    _plot_3d_fig(ts_target[s3d:e3d], result[s3d:e3d], ts_orbit[s3d:e3d])
 
 
 def test_mann(args, config):
@@ -305,23 +312,23 @@ def _evaluate(target_deg, estimate_deg, orbit_deg):
     print("-------------------------------------------------------------")
 
     # # plot error trend
-    window_size = 15
-    num = target_deg.shape[0] // window_size
-    indices_pool = [(i * window_size, (i + 1) * window_size) for i in range(num)]
-    mae_step = []
-    mae_all_step = []
-    for i in range(num // window_size):
-        s, e = indices_pool[i]
-        mae_step.append(list(map(mean_absolute_error, target_deg[s:e].T, estimate_deg[s:e].T)))
-        mae_all_step.append(mean_absolute_error(target_deg[s:e], estimate_deg[s:e]))
+    # window_size = 15
+    # num = target_deg.shape[0] // window_size
+    # indices_pool = [(i * window_size, (i + 1) * window_size) for i in range(num)]
+    # mae_step = []
+    # mae_all_step = []
+    # for i in range(num // window_size):
+    #     s, e = indices_pool[i]
+    #     mae_step.append(list(map(mean_absolute_error, target_deg[s:e].T, estimate_deg[s:e].T)))
+    #     mae_all_step.append(mean_absolute_error(target_deg[s:e], estimate_deg[s:e]))
 
-    mae_trend = np.asarray(mae_step)
-    for i in range(4):
-        plt.subplot(5, 1, i + 1)
-        plt.plot(mae_trend[:, i])
-    plt.subplot(5, 1, 5)
-    plt.plot(mae_all_step)
-    plt.show()
+    # mae_trend = np.asarray(mae_step)
+    # for i in range(4):
+    #     plt.subplot(5, 1, i + 1)
+    #     plt.plot(mae_trend[:, i])
+    # plt.subplot(5, 1, 5)
+    # plt.plot(mae_all_step)
+    # plt.show()
 
 
 def _plot_single_fig(target_deg, estimate_deg, orbit_deg, dt=0.05):
@@ -358,11 +365,12 @@ def _plot_single_fig(target_deg, estimate_deg, orbit_deg, dt=0.05):
 
 
 def _plot_3d_fig(target_rad, estimate_rad, orbit_rad):
+    estimate_rad[:, 2] = target_rad[:, 2]
     x_gt, y_gt, z_gt = angle2position(target_rad)
     x_es, y_es, z_es = angle2position(estimate_rad)
     x_or, y_or, z_or = angle2position(orbit_rad)
 
-    fig3d = plt.figure(1)
+    fig3d = plt.figure(5)
     ax = Axes3D(fig3d)
 
     ax.plot(x_or, y_or, z_or, 'g-', label='current')
@@ -372,8 +380,32 @@ def _plot_3d_fig(target_rad, estimate_rad, orbit_rad):
     ax.set_ylabel('Y (cm)')
     ax.set_zlabel('Z (cm)')
 
-    plt.legend(loc=0)
+    plt.legend(loc=0, prop={'size': 10})
+    fig3d.savefig('offline_fig/YH_3D.png', dpi=200, bbox_inches='tight')
     plt.show()
+
+
+def _save_single_fig(target_deg, estimate_deg, orbit_deg, dt=0.05):
+    # show_interval = 200
+    show_interval = target_deg.shape[0]
+    x = [i * dt for i in range(show_interval)]
+
+    target_deg[:, 1] += 90
+    estimate_deg[:, 1] += 90
+    orbit_deg[:, 1] += 90
+    # # ----- plot single axis -----
+    joint_names = ['Horizontal abd./add.', 'Shoulder flex./ext.', 'Ext./int. rotation', 'Elbow flex./ext.']
+    for i in range(4):
+        fig = plt.figure(i + 1, figsize=(15.0, 5.0))
+        if i == 2:
+            plt.ylim(-35, 35)
+        plt.plot(x, orbit_deg[:show_interval, i], 'g-', label='current')
+        plt.plot(x, target_deg[:show_interval, i], 'k-', label='target')
+        plt.plot(x, estimate_deg[:show_interval, i], 'r--', label='predict')
+        plt.legend(loc=0, prop={'size': 14})
+        plt.xlabel('time (sec)', fontsize=12)
+        plt.ylabel('{} (degrees)'.format(joint_names[i]), fontsize=12)
+        fig.savefig('offline_fig/YH_{}axis.png'.format(i), dpi=200, bbox_inches='tight')
 
 
 def _load_graph(frozen_graph_filename):
