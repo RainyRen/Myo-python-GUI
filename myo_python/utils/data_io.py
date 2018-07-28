@@ -38,7 +38,7 @@ class DataManager(object):
         self.val_target = list()
 
         self.separate_rate = separate_rate
-        all_file_list = list(self.file_path.glob('*.csv'))
+        all_file_list = list(self.file_path.glob('*_L_*.csv'))
         print("Found {} files".format(len(all_file_list)))
         print(all_file_list, end='\n\n')
 

@@ -344,7 +344,7 @@ class ArmAngle2(object):
             self.cpl_filter_2 = Complementary(dt, self.angle_2)
             self.cpl_filter_5 = Complementary(dt, self.angle_5)
             self.cpl_filter_6 = Complementary(dt, self.angle_6)
-            self.cpl_filter_7 = Complementary(dt, self.angle_7)
+            self.cpl_filter_7 = Complementary(dt, self.angle_7, a=0.5)
 
         self.calibration(rpys)
 
@@ -388,8 +388,26 @@ class ArmAngle2(object):
             self.angle_2 = self.cpl_filter_2.get_angle(self.angle_2, gyr[1][2])
             self.angle_5 = self.cpl_filter_5.get_angle(self.angle_5, gyr[1][1])
             self.angle_6 = self.cpl_filter_6.get_angle(self.angle_6, gyr[1][0])
+            # self.angle_7 = self.cpl_filter_7.get_angle(
+            #     forearm[1] - self.forearm_bias[1] + self.init_angle[3], gyr[0][1]) - self.angle_5
+
+            x_f = math.cos(math.radians(forearm[2])) * math.cos(math.radians(forearm[1]))
+            y_f = math.sin(math.radians(forearm[2])) * math.cos(math.radians(forearm[1]))
+            z_f = math.sin(math.radians(forearm[1]))
+            v_forearm = np.array([x_f, y_f, z_f])
+
+            x_f_bais = math.cos(math.radians(self.forearm_bias[2])) * math.cos(math.radians(self.forearm_bias[1]))
+            y_f_bias = math.sin(math.radians(self.forearm_bias[2])) * math.cos(math.radians(self.forearm_bias[1]))
+            z_f_bias = math.sin(math.radians(self.forearm_bias[1]))
+            v_upper = np.array([x_f_bais, y_f_bias, z_f_bias])
+            forarm_pitch = math.degrees(math.acos(np.dot(v_forearm, v_upper)))
+
             self.angle_7 = self.cpl_filter_7.get_angle(
                 forearm[1] - self.forearm_bias[1] + self.init_angle[3], gyr[0][1]) - self.angle_5
+
+            if forarm_pitch >= 90:
+                self.angle_7 = 180 - self.cpl_filter_7.get_angle(
+                    forearm[1] - self.forearm_bias[1] + self.init_angle[3], gyr[0][1]) - self.angle_5
 
         else:
             self.angle_7 = (forearm[1] - self.forearm_bias[1]) - self.angle_5 + self.init_angle[3]
@@ -401,9 +419,6 @@ class ArmAngle2(object):
         self.angle_7 *= (1 + self.angle_7_cps_k)
 
         # # ----- bound each angle value -----
-        # self.angle_2 = self._bound(0., 90., self.angle_2)
-        # self.angle_5 = self._bound(0., 90., self.angle_5)
-        # self.angle_6 = self._bound(0., 90., self.angle_6)
         self.angle_7 = self._bound(0., 90., self.angle_7)
 
         # # Keep two decimal

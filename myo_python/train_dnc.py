@@ -34,11 +34,11 @@ def main():
     parser.add_argument('--batch_size', default=32)
 
     # # model parameters
-    parser.add_argument('--hidden_size', default=64, help='size of LSTM hidden layer')
-    parser.add_argument('--memory_size', default=128, help='number of memory slots')
-    parser.add_argument('--word_size', default=32, help='width of each memory slot')
+    parser.add_argument('--hidden_size', default=32, help='size of LSTM hidden layer')
+    parser.add_argument('--memory_size', default=256, help='number of memory slots')
+    parser.add_argument('--word_size', default=16, help='width of each memory slot')
     parser.add_argument('--num_write_heads', default=1)
-    parser.add_argument('--num_read_heads', default=4)
+    parser.add_argument('--num_read_heads', default=2)
     parser.add_argument('--clip_value', default=20, help='maximum absolute value of controller and dnc output')
 
     # # optimizer parameters
@@ -47,10 +47,10 @@ def main():
     parser.add_argument('--optimizer_epsilon', default=1e-10, help='epsilon used for RMSProp optimizer')
 
     # # training options
-    parser.add_argument('--num_epoches', default=300000)
-    parser.add_argument('--save_dir', default='./exp/dnc_s10_f4')
-    parser.add_argument('--tensorboard_dir', default='./exp/dnc_s10_f4/summary')
-    parser.add_argument('--extract_dir', default='./exp/dnc_s10_f4/DNC')
+    parser.add_argument('--num_epoches', default=500000)
+    parser.add_argument('--save_dir', default='./exp/dnc_s10_r32_m256_w16_f4')
+    parser.add_argument('--tensorboard_dir', default='./exp/dnc_s10_r32_m256_w16_f4/summary')
+    parser.add_argument('--extract_dir', default='./exp/dnc_s10_r32_m256_w16_f4/DNC')
     args = parser.parse_args()
 
     # # ===== determine mode =====
@@ -241,7 +241,7 @@ def freeze_graph2(model_dir, output_node_names='output'):
     output_graph = str(model_dir.parent / "frozen_model2.pb")
 
     with tf.Session() as sess:
-        saver.restore(sess, str(model_dir / 'model.tfmodel-85000'))
+        saver.restore(sess, str(model_dir / 'model.tfmodel-495000'))
 
         output_graph_def = tf.graph_util.convert_variables_to_constants(
             sess,

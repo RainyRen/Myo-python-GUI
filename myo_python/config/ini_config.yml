@@ -1,3 +1,4 @@
+arm_side: auto
 complementary_a: 0.98
 ef_compensate_k: 0.182
 emg_filter: true
@@ -6,7 +7,7 @@ filter_order: 4
 ha_compensate_k: 0.18
 imu_filter: true
 low_cutoff: 2
-model_path: mann_s10_h2_f4
+model_path: JLW_stft_f4_dueling
 moving_ave: true
 req_mode: false
 send_fs: 20
