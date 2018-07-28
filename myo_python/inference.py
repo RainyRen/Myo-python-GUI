@@ -17,7 +17,7 @@ from utils.data_io import DataManager, angle2position
 UPPER_ARM_LEN = 32      # # unit: cm
 FOREARM_LEN = 33        # # unit: cm
 
-MODEL_DIR_NAME = "JLW_trad_f4_R/ze"
+MODEL_DIR_NAME = "J_stft_f4_dueling"
 # # ==================================
 
 
@@ -25,7 +25,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default="test_reg", help='test_reg or test_cls or test_trad or test_mann')
     parser.add_argument('--save_dir', default='./exp')
-    parser.add_argument('--mann_dir', default='./exp/mann_10_h2_r32_one_f4')
+    parser.add_argument('--mann_dir', default='./exp/mpan_s10_h2_f4')
     args = parser.parse_args()
 
     # # ===== load model config from saved config file =====
@@ -216,8 +216,9 @@ def test_mann(args, config):
     # # prefix/Accuracy/predictions
 
     # # We access the input and output nodes
-    x = graph.get_tensor_by_name('prefix/Placeholder:0')
-    x_label = graph.get_tensor_by_name('prefix/Placeholder_1:0')
+    x_kin = graph.get_tensor_by_name('prefix/Placeholder:0')
+    x_emg = graph.get_tensor_by_name('prefix/Placeholder_1:0')
+    x_label = graph.get_tensor_by_name('prefix/Placeholder_2:0')
     prediction = graph.get_tensor_by_name('prefix/output:0')
 
     # # load test data
@@ -244,7 +245,7 @@ def test_mann(args, config):
     ts_orbit = ts_orbit[:total_ts_num]
     ts_target = ts_target[:total_ts_num]
 
-    ts_x = np.concatenate((ts_kinematic, ts_emg), axis=-1)
+    # ts_x = np.concatenate((ts_kinematic, ts_emg), axis=-1)
     # ts_x_label = np.concatenate([np.zeros(shape=[ts_target.shape[0], 1, 4]), ts_target[:, :-1, :]], axis=1)
     ts_x_label = np.zeros((ts_orbit.shape[0], config['seq_length'], 4))
     ts_x_label[:, 1:useful_label_num + 1, :] = ts_kinematic[:, -useful_label_num:, :4]
@@ -256,7 +257,8 @@ def test_mann(args, config):
         output = []
         for i in tqdm(range(n_batch), ncols=60):
             s, e = i * batch_size, (i + 1) * batch_size
-            feed_dict = {x: ts_x[s:e], x_label: ts_x_label[s:e]}
+            # feed_dict = {x: ts_x[s:e], x_label: ts_x_label[s:e]}
+            feed_dict = {x_kin: ts_kinematic[s:e], x_emg: ts_emg[s:e], x_label: ts_x_label[s:e]}
             output.append(sess.run(prediction, feed_dict=feed_dict))
 
     result = np.concatenate(output, axis=0)
@@ -335,26 +337,26 @@ def _plot_single_fig(target_deg, estimate_deg, orbit_deg, dt=0.05):
     plt.plot(x, target_deg[:show_interval, 0], 'k-', label='target')
     plt.plot(x, estimate_deg[:show_interval, 0], 'r--', label='predict')
     plt.legend(loc=0)
-    plt.ylabel('degree')
+    plt.ylabel('degrees')
     plt.subplot(412)
     plt.plot(x, orbit_deg[:show_interval, 1], 'g-', label='current')
     plt.plot(x, target_deg[:show_interval, 1], 'k-', label='target')
     plt.plot(x, estimate_deg[:show_interval, 1], 'r--', label='predict')
     plt.legend(loc=0)
-    plt.ylabel('degree')
+    plt.ylabel('degrees')
     plt.subplot(413)
     plt.plot(x, orbit_deg[:show_interval, 2], 'g-', label='current')
     plt.plot(x, target_deg[:show_interval, 2], 'k-', label='target')
     plt.plot(x, estimate_deg[:show_interval, 2], 'r--', label='predict')
     plt.legend(loc=0)
-    plt.ylabel('degree')
+    plt.ylabel('degrees')
     plt.subplot(414)
     plt.plot(x, orbit_deg[:show_interval, 3], 'g-', label='current')
     plt.plot(x, target_deg[:show_interval, 3], 'k-', label='target')
     plt.plot(x, estimate_deg[:show_interval, 3], 'r--', label='predict')
     plt.legend(loc=0)
     plt.xlabel('time')
-    plt.ylabel('degree')
+    plt.ylabel('degrees')
 
 
 def _plot_3d_fig(target_rad, estimate_rad, orbit_rad):

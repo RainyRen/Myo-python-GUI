@@ -10,7 +10,8 @@ from tensorflow.python import debug as tf_debug
 from sklearn.metrics import mean_absolute_error
 
 from utils import data_io
-from models.tf_models import NTMOneShotLearningModel
+# from models.tf_models import NTMOneShotLearningModel
+from models.tf_models import MPAN
 
 # # ===== global parameters =====
 ROOT_PATH = Path(__file__).parent
@@ -32,17 +33,17 @@ def main():
     parser.add_argument('--model', default="MANN", help='LSTM, MANN, MANN2 or NTM')
     parser.add_argument('--read_head_num', default=2)
     parser.add_argument('--batch_size', default=32)
-    parser.add_argument('--num_epoches', default=300000)
+    parser.add_argument('--num_epoches', default=500000)
     parser.add_argument('--learning_rate', default=1e-3)
-    parser.add_argument('--rnn_size', default=32)
+    parser.add_argument('--rnn_size', default=64)
     parser.add_argument('--rnn_num_layers', default=1)
     parser.add_argument('--memory_size', default=256)
-    parser.add_argument('--memory_vector_dim', default=32)
+    parser.add_argument('--memory_vector_dim', default=64)
     parser.add_argument('--shift_range', default=1, help='Only for model=NTM')
     parser.add_argument('--write_head_num', default=1, help='Only for model=NTM. For MANN #(write_head) = #(read_head)')
-    parser.add_argument('--save_dir', default='./exp/mann_s10_h2_f4')
-    parser.add_argument('--tensorboard_dir', default='./exp/mann_s10_h2_f4/summary')
-    parser.add_argument('--extract_dir', default='./exp/mann_s10_h2_f4/MANN')
+    parser.add_argument('--save_dir', default='./exp/mpan_s10_h2_f4')
+    parser.add_argument('--tensorboard_dir', default='./exp/mpan_s10_h2_f4/summary')
+    parser.add_argument('--extract_dir', default='./exp/mpan_s10_h2_f4/MANN')
     args = parser.parse_args()
 
     # # ===== determine mode =====
@@ -69,7 +70,8 @@ def train_tf_reg(args):
 
     # # ===== obtain model =====
     args.output_dim = 4
-    model = NTMOneShotLearningModel(args)
+    # model = NTMOneShotLearningModel(args)
+    model = MPAN(args)
 
     usefule_label_num = args.seq_length - args.future_time
 
@@ -126,13 +128,13 @@ def train_tf_reg(args):
             # # ---------- Train ----------
             tr_data, _ = next(tr_data_generator)
             tr_kinematic, tr_emg, tr_target = tr_data
-            x = np.concatenate((tr_kinematic, tr_emg), axis=-1)
+            # x = np.concatenate((tr_kinematic, tr_emg), axis=-1)
             x_label = np.zeros((args.batch_size, args.seq_length, 4))
             x_label[:, 1:usefule_label_num + 1, :] = tr_kinematic[:, -usefule_label_num:, :4]
             # x_label = np.concatenate([np.zeros((args.batch_size, 1, 4)), tr_target[:, :-1, :]], axis=1)
             y = tr_target
 
-            feed_dict = {model.x: x, model.x_label: x_label, model.y: y}
+            feed_dict = {model.x_kin: tr_kinematic, model.x_emg: tr_emg, model.x_label: x_label, model.y: y}
             sess.run(model.train_op, feed_dict=feed_dict)
 
             # # --------------------------------
@@ -140,13 +142,13 @@ def train_tf_reg(args):
             if b % 500 == 0:
                 val_data, _ = next(val_data_generator)
                 val_kinematic, val_emg, val_target = val_data
-                x_val = np.concatenate((val_kinematic, val_emg), axis=-1)
+                # x_val = np.concatenate((val_kinematic, val_emg), axis=-1)
                 x_label_val = np.zeros((args.batch_size, args.seq_length, 4))
                 x_label_val[:, 1:usefule_label_num + 1, :] = val_kinematic[:, -usefule_label_num:, :4]
                 # x_label_val = np.concatenate([np.zeros((args.batch_size, 1, 4)), val_target[:, :-1, :]], axis=1)
                 y_val = val_target
 
-                feed_dict = {model.x: x_val, model.x_label: x_label_val, model.y: y_val}
+                feed_dict = {model.x_kin: val_kinematic, model.x_emg: val_emg, model.x_label: x_label_val, model.y: y_val}
                 output, learning_loss = sess.run([model.o, model.learning_loss], feed_dict=feed_dict)
                 merged_summary = sess.run(model.learning_loss_summary, feed_dict=feed_dict)
                 train_writer.add_summary(merged_summary, b)
@@ -232,14 +234,15 @@ def freeze_graph2(model_dir, output_node_names='output'):
     model_args = namedtuple('args', config.keys())(*config.values())
 
     # # ===== load model =====
-    model = NTMOneShotLearningModel(model_args)
+    # model = NTMOneShotLearningModel(model_args)
+    model = MPAN(model_args)
     saver = tf.train.Saver()
 
     output_node_names = 'output'
     output_graph = str(model_dir.parent / "frozen_model2.pb")
 
     with tf.Session() as sess:
-        saver.restore(sess, str(model_dir / 'model.tfmodel-295000'))
+        saver.restore(sess, str(model_dir / 'model.tfmodel-495000'))
 
         output_graph_def = tf.graph_util.convert_variables_to_constants(
             sess,
