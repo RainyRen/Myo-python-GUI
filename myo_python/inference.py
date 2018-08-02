@@ -22,8 +22,14 @@ MODEL_DIR_NAME = "J_stft_f4_dueling"
 
 
 def main():
+    """
+    main program
+    """
+    # # mode select
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', default="test_reg", help='test_reg or test_cls or test_trad or test_mann')
+
+    # # test for mann
     parser.add_argument('--save_dir', default='./exp')
     parser.add_argument('--mann_dir', default='./exp/mpan_s10_h2_f4')
     args = parser.parse_args()
@@ -73,6 +79,12 @@ def main():
 
 # # ================================================ Keras ===========================================================
 def test_reg(config):
+    """
+    :param dict config: model parameter config
+    :return None
+    testing for keras regression model
+    """
+    # # prepare testing data
     test_data_loader = DataManager(
         './data/' + str(config['fs']) + 'hz' + '/test',
         separate_rate=0,
@@ -84,11 +96,12 @@ def test_reg(config):
     )
     dt = 1 / config['fs']
 
-    # train_data, test_data = data_mg.get_all_data()
+    # # load testing data from file
     test_data, _ = test_data_loader.get_all_data(get_emg_raw=False, emg_3d=True)
     ts_kinematic, ts_emg, ts_target = test_data
     ts_orbit = ts_kinematic[:, -1, :4]
 
+    # # load model from file
     model = load_model(config['model_path'])
     result = model.predict([ts_kinematic, ts_emg], batch_size=128, verbose=1)
     # result = model.predict_on_batch([ts_kinematic, ts_emg])
@@ -156,6 +169,11 @@ def test_cls(config):
 
 
 def test_trad(config):
+    """
+    :param dict config: model parameter config
+    :return None
+    testing for traditional regression model
+    """
     from sklearn.externals import joblib
 
     test_data_loader = DataManager(
@@ -287,6 +305,13 @@ def test_mann(args, config):
 
 
 def _evaluate(target_deg, estimate_deg, orbit_deg):
+    """
+    :param nd_array target_deg: target angle in degrees
+    :param nd_array estimate_deg: estimate angle in degrees
+    :param nd_array orbit_deg: original arm angle orbit in degrees
+    :return None
+    print evaluete score
+    """
     r2 = r2_score(target_deg, estimate_deg)
     r2_2 = r2_score(target_deg[:, 0], estimate_deg[:, 0])
     r2_5 = r2_score(target_deg[:, 1], estimate_deg[:, 1])

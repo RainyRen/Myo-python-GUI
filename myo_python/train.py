@@ -41,6 +41,7 @@ def main():
             with open(Path(args.save_dir) / args.fine_tune / 'config.yml', 'r') as config_file:
                 train_config = yaml.load(config_file)
         else:
+            # # load training config from file
             with open(str(CONFIG_PATH / 'train_keras.yml'), 'r') as config_file:
                 train_config = yaml.load(config_file)
 
@@ -75,13 +76,14 @@ def train_reg(args, train_config):
     :param args:
     :param dict train_config:
     :return: None
+    training keras regression model
     """
     if args.fine_tune:
         model_folder_path = Path(args.save_dir) / args.fine_tune
 
         model_weight_path = model_folder_path / 'rnn_weight.h5'
         save_folder = model_folder_path / 'fine_tune'
-        model_name = 'tune_best.h5'
+        model_name = 'rnn_best.h5'
 
         model = k_models.multi2one_stft_dueling(train_config, fine_tune=True)
         model.load_weights(str(model_weight_path))
@@ -91,7 +93,7 @@ def train_reg(args, train_config):
         model_name = 'rnn_best.h5'
         model = k_models.multi2one_stft_dueling(train_config)
 
-    # # ===== get pre-processed data =====
+    # # ===== get training and validation data =====
     train_data_loader = data_io.DataManager(
         './data/' + str(train_config['fs']) + 'hz' + '/train',
         separate_rate=0.,
@@ -122,6 +124,7 @@ def train_reg(args, train_config):
     with open(str(save_folder / 'config.yml'), 'w') as write_file:
         yaml.dump(train_config, write_file, default_flow_style=False)
 
+    # # unpack data to get each component composition
     tr_kinematic, tr_emg, tr_target = tr_data
     val_kinematic, val_emg, val_target = val_data
 
@@ -134,8 +137,10 @@ def train_reg(args, train_config):
         mode='min'
     )
 
+    # # define save history callback, we can save history in every epochs
     save_history = k_models.DumpHistory(str(save_folder / 'logs.csv'))
 
+    # # start training
     model.fit(
         x=[tr_kinematic, tr_emg], y=tr_target,
         validation_data=([val_kinematic, val_emg], val_target),
@@ -189,7 +194,6 @@ def train_cls(args, train_config):
     tr_move_data, _ = train_move_data_loader.get_all_data()
     tr_stop_data, _ = train_stop_data_loader.get_all_data()
     val_data, _ = val_data_loader.get_all_data()
-    pdb.set_trace()
 
     # # check folder exist, if not create new one
     data_io.folder_check(save_folder)
@@ -252,7 +256,7 @@ def train_trad(args, train_config):
                for _ in range(4)]
         # gpr = [GaussianProcessRegressor() for _ in range(4)]
 
-    # # ===== get pre-processed data =====
+    # # ===== get taining and validation data =====
     train_data_loader = data_io.DataManager(
         './data/' + str(train_config['fs']) + 'hz' + '/train',
         separate_rate=0.,
@@ -297,6 +301,7 @@ def train_trad(args, train_config):
     print('\ntraining linear mode...')
     lin_score = list()
     lin_mae = list()
+    # # each joint have a model, totally we have four models
     for i in range(4):
         select_col[0] = i
         lin[i].fit(train_x[:, select_col], train_y[:, i])
@@ -308,6 +313,7 @@ def train_trad(args, train_config):
 
         print("linear model {} axis -- mae: {} -- R2: {}".format(i, lin_mae[i], lin_score[i]))
 
+    # # save model
     joblib.dump(lin, str(save_folder / 'lin_model.p'))
 
     # # ===== training SVM models and evaluate =====
@@ -324,6 +330,7 @@ def train_trad(args, train_config):
         svr_mae.append(math.degrees(mean_absolute_error(val_y[:, i], svr_val_y)))
         print("SVR model {} axis -- mae: {} -- R2: {}".format(i, svr_mae[i], svr_score[i]))
 
+    # # save model
     joblib.dump(svr, str(save_folder / 'svr_model.p'))
 
     # # ===== training KNN models and evaluate =====

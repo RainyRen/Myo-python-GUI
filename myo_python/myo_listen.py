@@ -102,6 +102,7 @@ class MyoListen(QThread):
             self.record_signal = False
 
         try:
+            # # myo hub thread strat
             self.hub.run(20, self.listener)
             # # ===== wait a moment to start event =====
             print("Waiting for Myo to connect...")
@@ -112,11 +113,13 @@ class MyoListen(QThread):
             print("{} myo devices connect".format(self.devices_num))
             self.msg_signal.emit("{} myo devices connect".format(self.devices_num))
 
+            # # check myo devices connect
             if self.devices_num == 0:
                 print("No Myo connected")
                 self.msg_signal.emit("No Myo connected")
                 return
 
+            # # show auto detect myo on which arm
             for device_id, device_arm in enumerate(self.listener.arm):
                 print('Myo {} wear on {}'.format(device_id, device_arm))
                 if device_id == 0 and self.devices_arm == 'auto':
@@ -188,6 +191,11 @@ class MyoListen(QThread):
             self.socket.sendto(send_msg, self.udp_address)
 
     def record(self, file_name, is_record):
+        """
+        :param str file_name: save file name
+        :param bool is_record: bool value for record or not
+        thread lock is record command and do record
+        """
         with QMutexLocker(self.mutex):
             self.record_signal = is_record
             if is_record:
@@ -197,6 +205,9 @@ class MyoListen(QThread):
                 self.record_file.close()
 
     def stop(self):
+        """
+        stop myo listen
+        """
         with QMutexLocker(self.mutex):
             self.stop_signal = True
 
@@ -204,10 +215,17 @@ class MyoListen(QThread):
             self.socket.close()
 
     def is_stop(self):
+        """
+        :return stop_signal
+        detect myo is run or stop
+        """
         with QMutexLocker(self.mutex):
             return self.stop_signal
 
     def _req_mode(self):
+        """
+        request mode, communication requires two-way handshake
+        """
         self.msg_signal.emit('request mode on')
         while self.hub.running:
             cmd = self.socket.recv()
@@ -225,6 +243,9 @@ class MyoListen(QThread):
                 print("No such command")
 
     def _pub_mode(self):
+        """
+        publish mode, this is the mode we usullay used
+        """
         self.msg_signal.emit('publish mode on')
         while self.hub.running:
             t_start = time.time()
